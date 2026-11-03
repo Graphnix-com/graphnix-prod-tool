@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}System health · Graphnix tracker{% endblock %}
+{% block content %}
+  <h1>System health <span class="status {{ overall }}">{{ overall }}</span></h1>
+  <table>
+    <thead><tr><th>Check</th><th>Status</th><th>Detail</th><th>Last time</th></tr></thead>
+    <tbody>
+      {% for check in checks %}
+        <tr>
+          <td>{{ check.name }}</td>
+          <td class="status {{ check.status }}">{{ check.status }}</td>
+          <td>{{ check.detail }}</td>
+          <td>{% if check.when %}{{ check.when|date:"M j, Y g:i a" }}{% else %}—{% endif %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p>Times are Mountain Time. Crashes are emailed to the admin automatically.</p>
+{% endblock %}

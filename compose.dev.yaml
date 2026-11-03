@@ -1,0 +1,16 @@
+# Local development: just PostgreSQL. Run Django and the worker with uv (see README).
+#   docker compose -f compose.dev.yaml up -d
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: graphnix
+      POSTGRES_USER: graphnix
+      POSTGRES_PASSWORD: graphnix
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - dev-db-data:/var/lib/postgresql/data
+
+volumes:
+  dev-db-data: {}

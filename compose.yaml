@@ -1,0 +1,80 @@
+# One copy of this stack runs per environment, from /srv/graphnix/production and
+# /srv/graphnix/staging. Each has its own .env (COMPOSE_PROJECT_NAME, APP_ENV, ...).
+# Only Caddy (deploy/caddy) publishes ports; nothing here is reachable from outside.
+
+x-app: &app
+  image: graphnix-tracker:${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME in .env}
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    MEDIA_ROOT: /app/media
+    BACKUP_STATE_DIR: /backup-state
+  depends_on:
+    db:
+      condition: service_healthy
+  labels:
+    com.graphnix.autoheal: "true"
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: graphnix
+      POSTGRES_USER: graphnix
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U graphnix -d graphnix"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      com.graphnix.autoheal: "true"
+    networks: [internal]
+
+  web:
+    <<: *app
+    build:
+      context: .
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+    volumes:
+      - media:/app/media
+      - ${BACKUP_STATE_HOST_DIR:-./var/backup-state}:/backup-state:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      internal: {}
+      edge:
+        # Caddy reaches this environment as production-web or staging-web.
+        aliases: ["${APP_ENV:?set APP_ENV in .env}-web"]
+
+  worker:
+    <<: *app
+    pull_policy: never  # built by the web service
+    command: ["python", "manage.py", "procrastinate", "worker"]
+    volumes:
+      - media:/app/media
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check_heartbeat", "worker", "--max-age", "180"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 120s
+    networks: [internal]
+
+networks:
+  internal: {}
+  edge:
+    external: true
+    name: graphnix-edge
+
+volumes:
+  db-data: {}
+  media: {}

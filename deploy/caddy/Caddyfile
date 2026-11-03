@@ -1,0 +1,22 @@
+{
+	email {$ACME_EMAIL}
+}
+
+(common) {
+	encode zstd gzip
+	# Mock-up uploads (proofs) can be large.
+	request_body {
+		max_size 50MB
+	}
+	header -Server
+}
+
+jobs.graphnix.com {
+	import common
+	reverse_proxy production-web:8000
+}
+
+staging.jobs.graphnix.com {
+	import common
+	reverse_proxy staging-web:8000
+}

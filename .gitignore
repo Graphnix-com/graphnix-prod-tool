@@ -1,0 +1,15 @@
+# Secrets
+.env
+*.key
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Generated
+staticfiles/
+media/
+var/

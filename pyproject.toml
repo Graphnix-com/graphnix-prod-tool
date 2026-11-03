@@ -1,0 +1,45 @@
+[project]
+name = "graphnix-tracker"
+version = "0.1.0"
+description = "Graphnix production tracker: jobs from quote to shipping"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "django>=5.2,<5.3",
+    "django-environ>=0.12",
+    "gunicorn>=23",
+    "msal>=1.31",
+    "procrastinate[django]>=3.0,<4",
+    "psycopg[binary]>=3.2",
+    "requests>=2.32",
+    "whitenoise>=6.8",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-django>=4.9",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["**/migrations/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "DJ", "S", "SIM"]
+ignore = ["S101"]  # assert is fine in tests
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+filterwarnings = ["ignore:No directory at:UserWarning"]  # staticfiles/ only exists after collectstatic

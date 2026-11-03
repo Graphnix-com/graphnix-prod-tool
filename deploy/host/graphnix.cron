@@ -1,0 +1,10 @@
+# Install: sudo cp deploy/host/graphnix.cron /etc/cron.d/graphnix
+# Times are UTC (the server clock).
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Restart hung (unhealthy) containers.
+* * * * * root /srv/graphnix/production/deploy/host/restart-unhealthy.sh
+
+# Nightly production backup at 09:30 UTC (02:30 MST / 03:30 MDT).
+30 9 * * * root /srv/graphnix/production/deploy/host/backup.sh production >> /var/log/graphnix-backup.log 2>&1
