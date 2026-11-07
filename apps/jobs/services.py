@@ -1,0 +1,256 @@
+"""The only code that creates jobs and changes their status.
+
+Every function here locks the job row, checks the state machine (`flow`) and the user's
+permissions, then writes the job, one `JobStatusHistory` row and one `AuditLog` row in a
+single transaction (FR-30, NFR-03).
+"""
+
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
+from django.utils import timezone
+
+from apps.audit.services import record
+from apps.sales.models import Inquiry
+
+from . import flow, workdays
+from .flow import InvalidMove
+from .models import HoldReason, Job, JobStatusHistory, Status
+
+__all__ = [
+    "InvalidMove",
+    "cancel",
+    "convert_inquiry",
+    "create_job",
+    "hold",
+    "move",
+    "release_hold",
+    "reopen_cancelled",
+    "reopen_mockup",
+    "skip_mockup",
+]
+
+
+def _require(user, perm: str) -> None:
+    if not user.has_perm(perm):
+        raise PermissionDenied(f"You don't have permission to do that ({perm}).")
+
+
+def _require_reason(note: str) -> str:
+    note = (note or "").strip()
+    if not note:
+        raise InvalidMove("A reason is required for this move.")
+    return note
+
+
+def _locked(job: Job) -> Job:
+    return Job.objects.select_for_update().get(pk=job.pk)
+
+
+def _on_enter(job: Job, status: str, now) -> None:
+    """Dates that follow from reaching a stage."""
+    if status == Status.QUOTE_SENT and job.quote_sent_at is None:
+        job.quote_sent_at = now
+    elif status == Status.QUOTE_APPROVED and job.quote_approved_at is None:
+        job.quote_approved_at = now
+    elif status == Status.MOCKUP_APPROVED:
+        # The 14-business-day queue starts at each approval; a reopened mock-up gets a new
+        # suggestion. The due date itself is only filled in if nobody has set one.
+        job.mockup_approved_at = now
+        job.suggested_due_date = workdays.calendar().add_business_days(
+            timezone.localdate(now), workdays.turnaround_days()
+        )
+        if job.due_date is None:
+            job.due_date = job.suggested_due_date
+    elif status == Status.CLOSED:
+        job.closed_at = now
+
+
+def _change_status(job: Job, to_status: str, user, note: str, source: str, action: str) -> Job:
+    old = job.status
+    now = timezone.now()
+    job.status = to_status
+    job.status_changed_at = now
+    _on_enter(job, to_status, now)
+    job.save()
+    JobStatusHistory.objects.create(
+        job=job,
+        from_status=old,
+        to_status=to_status,
+        source=source,
+        changed_by=user if user is not None and user.is_authenticated else None,
+        note=note,
+        changed_at=now,
+    )
+    changes = {"status": [old, to_status]}
+    if note:
+        changes["reason"] = [None, note]
+    record(user, job, action, changes)
+    return job
+
+
+@transaction.atomic
+def create_job(
+    *,
+    customer,
+    title: str,
+    start: str,
+    user,
+    square_number: str = "",
+    inquiry: Inquiry | None = None,
+    **fields,
+) -> Job:
+    """A new job at Quoting (quote first) or Invoiced (straight to invoice)."""
+    _require(user, "jobs.add_job")
+    if start not in flow.START_STATUSES:
+        raise InvalidMove("A job starts at Quoting or at Invoiced.")
+    square_number = (square_number or "").strip()
+    if square_number and Job.objects.filter(square_number=square_number).exists():
+        raise ValidationError({"square_number": f"Job {square_number} already exists."})
+    job = Job(
+        customer=customer,
+        title=title,
+        status=start,
+        square_number=square_number,
+        inquiry=inquiry,
+        created_by=user,
+        **fields,
+    )
+    job.save()
+    label = "quote first" if start == Status.QUOTING else "straight to invoice"
+    JobStatusHistory.objects.create(
+        job=job,
+        from_status="",
+        to_status=start,
+        changed_by=user,
+        note=f"Job created ({label})",
+        changed_at=job.status_changed_at,
+    )
+    record(user, job, "create", {"status": [None, start], "job_number": [None, job.job_number]})
+    return job
+
+
+@transaction.atomic
+def convert_inquiry(
+    inquiry: Inquiry, *, user, start: str, customer=None, title: str = "", square_number=""
+) -> Job:
+    """Turn an inquiry into a job (FR-02). The customer must be matched or created first."""
+    inquiry = Inquiry.objects.select_for_update().get(pk=inquiry.pk)
+    if inquiry.status in (Inquiry.Status.CONVERTED, Inquiry.Status.DECLINED):
+        raise InvalidMove(f"This inquiry is already {inquiry.get_status_display().lower()}.")
+    customer = customer or inquiry.customer
+    if customer is None:
+        raise ValidationError({"customer": "Pick or create the customer first."})
+    job = create_job(
+        customer=customer,
+        title=title or inquiry.subject or f"Request from {customer}",
+        start=start,
+        user=user,
+        square_number=square_number,
+        inquiry=inquiry,
+        contact=inquiry.contact,
+        source=inquiry.channel,
+    )
+    old_status = inquiry.status
+    inquiry.status = Inquiry.Status.CONVERTED
+    inquiry.customer = customer
+    inquiry.save(update_fields=["status", "customer"])
+    record(user, inquiry, "update", {"status": [old_status, inquiry.status], "job": [None, job.pk]})
+    return job
+
+
+@transaction.atomic
+def move(job: Job, to_status: str, *, user, note: str = "", source: str = "user") -> Job:
+    """Move a job along the path: one stage forward, or (with a reason) anywhere else."""
+    job = _locked(job)
+    kind = flow.classify(job.status, to_status)
+    _require(user, flow.permission_for(kind, job.status))
+    if kind == flow.JUMP:
+        note = _require_reason(note)
+    return _change_status(
+        job,
+        to_status,
+        user,
+        note.strip(),
+        source,
+        "status_change" if kind == flow.FORWARD else "override",
+    )
+
+
+def skip_mockup(job: Job, *, user, note: str) -> Job:
+    """Invoiced → Materials ordered, e.g. online store orders."""
+    if job.status not in flow.SKIP_MOCKUP_FROM:
+        raise InvalidMove("The mock-up can only be skipped from Invoiced.")
+    return move(job, flow.SKIP_MOCKUP_TO, user=user, note=note)
+
+
+def reopen_mockup(job: Job, *, user, note: str) -> Job:
+    """Back to Mock-up in progress after approval, e.g. the customer changed their mind."""
+    if job.status not in flow.REOPEN_MOCKUP_FROM:
+        raise InvalidMove(
+            "A mock-up can be reopened from Mock-up approved, Materials ordered "
+            "or Ready for production."
+        )
+    return move(job, flow.REOPEN_MOCKUP_TO, user=user, note=note)
+
+
+@transaction.atomic
+def hold(job: Job, *, user, reason_code: str, note: str = "") -> Job:
+    job = _locked(job)
+    _require(user, flow.OVERRIDE)
+    if job.status not in flow.HOLDABLE:
+        raise InvalidMove(f"A job at {job.get_status_display()} can't be put on hold.")
+    if reason_code not in HoldReason.values:
+        raise InvalidMove("Pick a reason for the hold.")
+    note = (note or "").strip()
+    if reason_code == HoldReason.OTHER:
+        note = _require_reason(note)
+    job.resume_status = job.status
+    job.hold_reason_code = reason_code
+    job.hold_reason = note
+    label = HoldReason(reason_code).label
+    return _change_status(
+        job, Status.ON_HOLD, user, f"{label}: {note}" if note else label, "user", "override"
+    )
+
+
+@transaction.atomic
+def release_hold(job: Job, *, user, note: str = "") -> Job:
+    job = _locked(job)
+    _require(user, flow.OVERRIDE)
+    if job.status != Status.ON_HOLD:
+        raise InvalidMove("The job isn't on hold.")
+    to_status = job.resume_status
+    job.resume_status = ""
+    job.hold_reason_code = ""
+    job.hold_reason = ""
+    return _change_status(job, to_status, user, (note or "").strip(), "user", "override")
+
+
+@transaction.atomic
+def cancel(job: Job, *, user, note: str) -> Job:
+    job = _locked(job)
+    _require(user, flow.OVERRIDE)
+    if job.status not in flow.CANCELLABLE:
+        raise InvalidMove(f"A job at {job.get_status_display()} can't be cancelled.")
+    note = _require_reason(note)
+    if job.status != Status.ON_HOLD:
+        job.resume_status = job.status
+    job.hold_reason_code = ""
+    job.hold_reason = ""
+    job.cancel_reason = note
+    # Step 4: cancelling also cancels the job's pending notifications (FR-36).
+    return _change_status(job, Status.CANCELLED, user, note, "user", "override")
+
+
+@transaction.atomic
+def reopen_cancelled(job: Job, *, user, note: str) -> Job:
+    """Admin only: back to the stage the job was cancelled from."""
+    job = _locked(job)
+    _require(user, flow.REOPEN)
+    if job.status != Status.CANCELLED:
+        raise InvalidMove("The job isn't cancelled.")
+    note = _require_reason(note)
+    to_status = job.resume_status
+    job.resume_status = ""
+    job.cancel_reason = ""
+    return _change_status(job, to_status, user, note, "user", "override")

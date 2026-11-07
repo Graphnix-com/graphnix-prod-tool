@@ -1,18 +1,29 @@
+from django.conf import settings
 from django.contrib.auth.base_user import BaseUserManager
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.models.functions import Lower
 
+PIN_LENGTH = 4
+
 
 class UserManager(BaseUserManager):
-    """Users sign in with their email address; there is no username."""
+    """Office staff sign in with their email address; there is no username.
+
+    Production staff have no Microsoft 365 account and no email (decided 7 Nov 2026): they
+    are created without one and sign in with name and PIN on the shop-floor PC (week 4).
+    """
 
     use_in_migrations = True
 
     def _create_user(self, email, password, **extra_fields):
-        if not email:
-            raise ValueError("Users must have an email address.")
-        email = self.normalize_email(email).lower()
+        if email:
+            email = self.normalize_email(email).lower()
+        elif password is not None:
+            raise ValueError("A user who signs in with a password needs an email address.")
+        else:
+            email = None
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -26,6 +37,8 @@ class UserManager(BaseUserManager):
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
+        if not email:
+            raise ValueError("A superuser must have an email address.")
         if not extra_fields["is_staff"] or not extra_fields["is_superuser"]:
             raise ValueError("A superuser must have is_staff=True and is_superuser=True.")
         return self._create_user(email, password, **extra_fields)
@@ -41,10 +54,16 @@ class User(AbstractUser):
     first_name = None
     last_name = None
 
-    email = models.EmailField("email address", unique=True)
+    # NULL (not "") for production staff, so the unique index allows several of them.
+    email = models.EmailField("email address", unique=True, null=True, blank=True)  # noqa: DJ001
     full_name = models.CharField(max_length=150)
     # Set the first time someone signs in with Microsoft 365 (INT-07).
     entra_object_id = models.UUIDField(null=True, blank=True, unique=True)
+    # The shop-floor PIN, hashed like a password. Works only on the shop-floor PC (week 4).
+    pin_hash = models.CharField(max_length=128, blank=True, editable=False)
+    default_station = models.ForeignKey(
+        "production.Station", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
 
     USERNAME_FIELD = "email"
     EMAIL_FIELD = "email"
@@ -64,10 +83,44 @@ class User(AbstractUser):
 
     def clean(self):
         super().clean()
-        self.email = self.__class__.objects.normalize_email(self.email).lower()
+        if self.email:
+            self.email = self.__class__.objects.normalize_email(self.email).lower()
+        else:
+            self.email = None
 
     def get_full_name(self) -> str:
         return self.full_name
 
     def get_short_name(self) -> str:
         return self.full_name.split(" ")[0] if self.full_name else self.email
+
+    def set_pin(self, pin: str) -> None:
+        if not (len(pin) == PIN_LENGTH and pin.isdigit()):
+            raise ValueError(f"A PIN is exactly {PIN_LENGTH} digits.")
+        self.pin_hash = make_password(pin)
+
+    def check_pin(self, pin: str) -> bool:
+        return bool(self.pin_hash) and check_password(pin, self.pin_hash)
+
+
+class AppSetting(models.Model):
+    """Admin-editable settings, e.g. working days and the 14-day turnaround (see jobs.workdays)."""
+
+    key = models.CharField(max_length=100, primary_key=True)
+    value = models.JSONField()
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "app_setting"
+        ordering = ["key"]
+
+    def __str__(self) -> str:
+        return self.key
+
+
+def get_setting(key: str, default=None):
+    value = AppSetting.objects.filter(key=key).values_list("value", flat=True).first()
+    return default if value is None else value

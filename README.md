@@ -11,8 +11,13 @@ Docker Compose · Caddy · Microsoft Graph for email.
 | Path | What |
 | --- | --- |
 | `config/` | Django settings and URLs. Every deploy-specific value comes from `.env`. |
-| `apps/accounts/` | Staff user model (email sign-in, table `app_user`). |
+| `apps/accounts/` | Staff user model (table `app_user`), roles (`roles.py`), admin settings. |
+| `apps/audit/` | Audit log of every edit, move and override (NFR-03). |
 | `apps/core/` | `/healthz`, worker heartbeat, health panel at `/ops/health/`. |
+| `apps/customers/` | Customers, contacts and addresses. |
+| `apps/jobs/` | Jobs, the state machine (`flow.py`), the only code that moves jobs (`services.py`), business days (`workdays.py`). |
+| `apps/production/` | Decoration methods and their stations. |
+| `apps/sales/` | Inquiries (quote requests). |
 | `apps/m365/` | Microsoft Graph client and the email backend (crash emails, later notifications). |
 | `compose.yaml` | The app stack (db, web, worker), one copy per environment. |
 | `deploy/caddy/` | The HTTPS front door shared by production and staging. |
@@ -32,6 +37,7 @@ uv sync
 uv run python manage.py migrate
 uv run python manage.py createcachetable
 uv run python manage.py createsuperuser
+uv run python manage.py seed_staff     # the shop's staff accounts and roles
 uv run python manage.py runserver
 ```
 
@@ -51,6 +57,13 @@ uv run ruff check . && uv run ruff format --check .
 uv run python manage.py makemigrations --check --dry-run
 uv run pytest
 ```
+
+## Roles
+
+Roles are Django groups defined in `apps/accounts/roles.py` and re-applied after every
+`migrate`: edit that file to change what a role can do (admin edits to those groups are
+overwritten). Who is in which group is set in the admin. Job status changes only through
+`apps/jobs/services.py`, which checks the rules in `apps/jobs/flow.py`.
 
 ## Deploys
 

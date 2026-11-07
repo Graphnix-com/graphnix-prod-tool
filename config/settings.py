@@ -28,8 +28,13 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "procrastinate.contrib.django",
     "apps.accounts",
+    "apps.audit",
     "apps.core",
+    "apps.customers",
+    "apps.jobs",
     "apps.m365",
+    "apps.production",
+    "apps.sales",
 ]
 
 MIDDLEWARE = [
