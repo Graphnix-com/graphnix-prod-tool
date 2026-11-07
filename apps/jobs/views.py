@@ -1,20 +1,22 @@
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from apps.production.models import ProductionTask
+from apps.production.models import DecorationMethod, ProductionTask
+from apps.sales.models import Inquiry
 
-from . import editing, services, timeline
+from . import board, editing, services, timeline
 from .editing import Locked
+from .flags import Flagger
 from .forms import ItemForm, JobDetailsForm, NoteForm, TaskForm
-from .models import Job, JobItem, Status
+from .models import Job, JobItem, PaymentStatus
 from .services import InvalidMove
 
 TABS = ["items", "timeline", "details"]
-FINISHED = [Status.CLOSED, Status.CANCELLED]
 
 
 def _errors(exc: ValidationError) -> str:
@@ -26,15 +28,62 @@ def _job_url(job: Job, tab: str = "items") -> str:
 
 
 @login_required
+def home(request):
+    """What needs doing, split by who has to act next. Admin and Manager land here; everyone
+    else lands on the board."""
+    if not request.user.has_perm("jobs.view_money"):
+        if request.user.has_perm("jobs.view_job"):
+            return redirect("jobs:list")
+        if request.user.has_perm("sales.view_inquiry"):
+            return redirect("sales:list")
+        return redirect("core:health")
+    flagger = Flagger()
+    return render(
+        request,
+        "jobs/home.html",
+        {
+            "panels": board.home(flagger),
+            "today": flagger.on,
+            "open_inquiries": Inquiry.objects.filter(
+                status__in=[Inquiry.Status.NEW, Inquiry.Status.IN_REVIEW]
+            ).count(),
+        },
+    )
+
+
+@login_required
 @permission_required("jobs.view_job", raise_exception=True)
 def job_list(request):
-    """Open jobs. The board replaces this in week 3."""
-    jobs = (
-        Job.objects.exclude(status__in=FINISHED)
-        .select_related("customer")
-        .order_by("due_date", "created_at")
-    )
-    return render(request, "jobs/job_list.html", {"jobs": jobs})
+    """The board (FR-31): a column per stage, in rows by lane, with filters."""
+    can_see_money = request.user.has_perm("jobs.view_money")
+    filters = board.Filters.from_request(request.GET, can_see_money)
+    show_side = request.GET.get("side") == "1"
+    flagger = Flagger()
+    context = {
+        "lanes": board.board(filters, show_side=show_side, flagger=flagger),
+        "filters": filters,
+        "show_side": show_side,
+        "today": flagger.on,
+        "can_see_money": can_see_money,
+        "methods": DecorationMethod.objects.filter(is_active=True),
+        "assignees": get_user_model().objects.filter(is_active=True),
+        "due_choices": board.DUE_FILTERS,
+        "payment_choices": PaymentStatus.choices,
+    }
+    template = "jobs/_board.html" if request.GET.get("partial") == "1" else "jobs/board.html"
+    return render(request, template, context)
+
+
+@login_required
+@permission_required("jobs.view_job", raise_exception=True)
+def job_search(request):
+    """Header search (FR-33). An exact job number goes straight to the job."""
+    query = request.GET.get("q", "").strip()
+    if job := board.exact_number(query):
+        return redirect("jobs:detail", pk=job.pk)
+    can_see_contacts = request.user.has_perm("customers.view_contact_details")
+    jobs = board.search(query, can_see_contacts=can_see_contacts)
+    return render(request, "jobs/search.html", {"query": query, "jobs": jobs})
 
 
 @login_required

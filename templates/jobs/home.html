@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Home · Graphnix tracker{% endblock %}
+{% block content %}
+<h1>Today</h1>
+<p class="sub">{{ today|date:"l j F Y" }} ·
+  {% if open_inquiries %}<a href="{% url 'sales:list' %}">{{ open_inquiries }} open inquir{{ open_inquiries|pluralize:"y,ies" }}</a>{% else %}No open inquiries{% endif %}
+  · <a href="{% url 'jobs:list' %}">Board</a></p>
+<div class="panels">
+  {% for panel in panels %}
+    <section class="card panel">
+      <h2><span>{{ panel.title }}</span><span class="muted">{{ panel.count }}</span></h2>
+      <h3>Waiting on Graphnix · {{ panel.graphnix|length }}</h3>
+      {% for c in panel.graphnix %}{% include "jobs/_home_row.html" %}{% empty %}<p class="muted" style="margin:0">Nothing.</p>{% endfor %}
+      <h3>Waiting on customer · {{ panel.customer|length }}</h3>
+      {% for c in panel.customer %}{% include "jobs/_home_row.html" %}{% empty %}<p class="muted" style="margin:0">Nothing.</p>{% endfor %}
+      {% if panel.title == "Invoices" %}<p class="help">Unpaid amounts appear here once Square is connected (Step 2).</p>{% endif %}
+    </section>
+  {% endfor %}
+</div>
+{% endblock %}

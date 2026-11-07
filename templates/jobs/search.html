@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Search · Graphnix tracker{% endblock %}
+{% block content %}
+<h1>Search</h1>
+<p class="sub">{% if query %}Jobs matching “{{ query }}”, by job number, title or customer{% if perms.customers.view_contact_details %} name or email{% endif %}.{% else %}Type a job number or customer in the box at the top.{% endif %}</p>
+{% if query %}
+<table>
+  <tr><th>Job</th><th>Title</th><th>Customer</th><th>Stage</th><th>Due</th></tr>
+  {% for job in jobs %}
+    <tr>
+      <td><a href="{% url 'jobs:detail' job.pk %}">{{ job.display_number }}</a>{% if job.square_number %} <span class="muted">{{ job.job_number }}</span>{% endif %}</td>
+      <td>{{ job.title }}</td>
+      <td>{{ job.customer.display_name }}</td>
+      <td>{{ job.get_status_display }}</td>
+      <td>{{ job.due_date|date:"D j M Y"|default:"—" }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5" class="muted">No jobs found.</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% endblock %}

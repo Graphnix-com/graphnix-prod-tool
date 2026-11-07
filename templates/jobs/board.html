@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Board · Graphnix tracker{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:baseline">
+  <h1>Board</h1>
+  <span class="muted" id="refreshed">Updates every minute</span>
+</div>
+<form method="get" class="filters">
+  <div><label for="f-method">Method</label>
+    <select name="method" id="f-method"><option value="">Any</option>
+      {% for m in methods %}<option value="{{ m.pk }}" {% if filters.method == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
+    </select></div>
+  <div><label for="f-due">Due</label>
+    <select name="due" id="f-due"><option value="">Any</option>
+      {% for value, label in due_choices %}<option value="{{ value }}" {% if filters.due == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select></div>
+  <div><label for="f-assignee">Assignee</label>
+    <select name="assignee" id="f-assignee"><option value="">Anyone</option>
+      {% for u in assignees %}<option value="{{ u.pk }}" {% if filters.assignee == u.pk|stringformat:"s" %}selected{% endif %}>{{ u }}</option>{% endfor %}
+    </select></div>
+  <div><label for="f-customer">Customer</label>
+    <input type="text" name="customer" id="f-customer" value="{{ filters.customer }}" placeholder="Name or company"></div>
+  {% if can_see_money %}
+    <div><label for="f-payment">Payment</label>
+      <select name="payment" id="f-payment"><option value="">Any</option>
+        {% for value, label in payment_choices %}<option value="{{ value }}" {% if filters.payment == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select></div>
+  {% endif %}
+  <div><label class="check"><input type="checkbox" name="side" value="1" {% if show_side %}checked{% endif %}> On hold and cancelled</label></div>
+  <div><button type="submit">Filter</button> {% if filters.active or show_side %}<a href="{% url 'jobs:list' %}">Clear</a>{% endif %}</div>
+</form>
+<div id="board">{% include "jobs/_board.html" %}</div>
+<script>
+  // Live refresh (FR-31): fetch the board every minute while this tab is visible.
+  (function () {
+    var url = new URL(window.location.href);
+    url.searchParams.set("partial", "1");
+    setInterval(function () {
+      if (document.hidden) return;
+      fetch(url, { credentials: "same-origin" }).then(function (r) {
+        if (r.ok && r.redirected === false) return r.text();
+      }).then(function (html) {
+        if (!html) return;
+        document.getElementById("board").innerHTML = html;
+        document.getElementById("refreshed").textContent =
+          "Updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      }).catch(function () {});
+    }, 60000);
+  })();
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
@@ -29,13 +29,3 @@ def health_panel(request):
         else health.OK
     )
     return render(request, "core/health.html", {"checks": checks, "overall": worst})
-
-
-@login_required
-def home(request):
-    # The Home page and board arrive in Step 1, week 3; until then, staff land on open jobs.
-    if request.user.has_perm("jobs.view_job"):
-        return redirect("jobs:list")
-    if request.user.has_perm("sales.view_inquiry"):
-        return redirect("sales:list")
-    return redirect("core:health")

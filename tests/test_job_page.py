@@ -352,6 +352,10 @@ def test_note_from_production_staff(client, make_user, job_at):
     assert job.notes.get().body == "Screen 3 torn, re-burning"
 
 
-def test_home_sends_staff_to_jobs(client, manager):
+def test_home_is_the_landing_page_for_managers_and_the_board_for_production(
+    client, manager, make_user
+):
     client.force_login(manager)
+    assert client.get("/").status_code == 200
+    client.force_login(make_user("production"))
     assert client.get("/")["Location"] == reverse("jobs:list")

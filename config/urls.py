@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
+from apps.jobs import views as job_views
+
 admin.site.site_header = "Graphnix tracker admin"
 admin.site.site_title = "Graphnix tracker"
 
@@ -13,5 +15,6 @@ urlpatterns = [
     path("customers/", include("apps.customers.urls")),
     path("inquiries/", include("apps.sales.urls")),
     path("jobs/", include("apps.jobs.urls")),
+    path("", job_views.home, name="home"),
     path("", include("apps.core.urls")),
 ]
