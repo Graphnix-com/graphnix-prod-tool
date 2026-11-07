@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{% if customer.pk %}Edit {{ customer.display_name }}{% else %}New customer{% endif %}{% endblock %}
+{% block content %}
+<p class="muted" style="margin:0"><a href="{% url 'customers:list' %}">Customers</a> /</p>
+<h1>{% if customer.pk %}Edit {{ customer.display_name }}{% else %}New customer{% endif %}</h1>
+<form method="post">
+  {% csrf_token %}
+  <div class="card">{% include "partials/form_fields.html" with form=form %}</div>
+
+  <h2>Contacts <span class="muted" style="font-weight:400">(for companies: one main contact and an optional second)</span></h2>
+  {{ contacts.management_form }}
+  {% if contacts.non_form_errors %}<ul class="errorlist">{% for e in contacts.non_form_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  {% for f in contacts %}<div class="card">{% include "partials/form_fields.html" with form=f %}</div>{% endfor %}
+
+  <h2>Addresses</h2>
+  {{ addresses.management_form }}
+  {% for f in addresses %}<div class="card">{% include "partials/form_fields.html" with form=f %}</div>{% endfor %}
+
+  <p><button type="submit" class="primary">Save customer</button>
+    <a href="{% if customer.pk %}{% url 'customers:detail' customer.pk %}{% else %}{% url 'customers:list' %}{% endif %}">Cancel</a></p>
+</form>
+{% endblock %}

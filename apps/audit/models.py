@@ -19,6 +19,9 @@ class AuditLog(models.Model):
     action = models.CharField(max_length=30)  # create, update, status_change, override, delete
     changes = models.JSONField(null=True, blank=True)  # {field: [old, new]}
     ip = models.GenericIPAddressField(null=True, blank=True)
+    # The job this entry belongs to (its items, tasks, notes), for the job's timeline. A plain
+    # id, not a foreign key, so entries outlive whatever they describe.
+    job_id = models.BigIntegerField(null=True, blank=True, db_index=True)
     at = models.DateTimeField(default=timezone.now)
 
     class Meta:

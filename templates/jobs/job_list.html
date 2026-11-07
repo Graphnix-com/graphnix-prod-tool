@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Jobs · Graphnix tracker{% endblock %}
+{% block content %}
+<h1>Open jobs</h1>
+<p class="sub">Soonest due first. The board replaces this list in week 3. New jobs start from an <a href="{% url 'sales:list' %}">inquiry</a>.</p>
+<table>
+  <tr><th>Job</th><th>Title</th><th>Customer</th><th>Stage</th><th>Due</th></tr>
+  {% for job in jobs %}
+    <tr>
+      <td><a href="{% url 'jobs:detail' job.pk %}">{{ job.display_number }}</a></td>
+      <td>{{ job.title }}{% if job.priority == 1 %} <span class="pill sooner">Sooner</span>{% endif %}</td>
+      <td>{{ job.customer.display_name }}</td>
+      <td>{{ job.get_status_display }}{% if job.waiting_on == "customer" %} <span class="pill customer">Customer</span>{% endif %}</td>
+      <td>{{ job.due_date|date:"D j M"|default:"—" }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5" class="muted">No open jobs.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

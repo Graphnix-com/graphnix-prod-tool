@@ -25,6 +25,7 @@ class AuditedAdmin(admin.ModelAdmin):
     def save_formset(self, request, form, formset, change):
         """Inline rows (a customer's contacts and addresses) are audited too."""
         ip = request.META.get("REMOTE_ADDR")
+        job = form.instance if form.instance._meta.label_lower == "jobs.job" else None
         edits = [
             (f.instance, {k: [f.initial.get(k), f.cleaned_data.get(k)] for k in f.changed_data})
             for f in formset.forms
@@ -32,12 +33,12 @@ class AuditedAdmin(admin.ModelAdmin):
         ]
         removed = [f.instance for f in formset.deleted_forms if f.instance.pk]
         for obj in removed:
-            record(request.user, obj, "delete", ip=ip)
+            record(request.user, obj, "delete", ip=ip, job=job)
         super().save_formset(request, form, formset, change)
         for obj, changes in edits:
-            record(request.user, obj, "update", changes, ip=ip)
+            record(request.user, obj, "update", changes, ip=ip, job=job)
         for obj in formset.new_objects:
-            record(request.user, obj, "create", ip=ip)
+            record(request.user, obj, "create", ip=ip, job=job)
 
     def delete_model(self, request, obj):
         record(request.user, obj, "delete", ip=request.META.get("REMOTE_ADDR"))

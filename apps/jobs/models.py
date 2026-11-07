@@ -137,6 +137,7 @@ class Job(models.Model):
                 fields=["square_number"],
                 condition=~Q(square_number=""),
                 name="job_square_number_unique",
+                violation_error_message="A job with this Square job number already exists.",
             ),
             models.CheckConstraint(condition=Q(status__in=Status.values), name="job_status_valid"),
         ]
@@ -221,3 +222,69 @@ class JobNote(models.Model):
 
     def __str__(self) -> str:
         return f"Note on {self.job.job_number} by {self.author or 'system'}"
+
+
+ONE_SIZE = "OS"
+# The size grid on the item form, in display order. Other sizes can be typed in.
+STANDARD_SIZES = [
+    "YXS", "YS", "YM", "YL", "YXL",
+    "XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL",
+]  # fmt: skip
+
+
+class JobItem(models.Model):
+    """A line on the job: a garment with sizes, or a non-garment (mug, banner) with a quantity."""
+
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="items")
+    line_no = models.PositiveSmallIntegerField(editable=False)
+    item_no = models.CharField("item no.", max_length=60, blank=True)  # plan: style_code
+    description = models.CharField(max_length=200)  # brand and style, e.g. "Gildan 5000 tee"
+    color = models.CharField("colour", max_length=60, blank=True)
+    # False for towels, mugs, knives, pens, signs, banners, stickers, wraps: one "OS" size row
+    # holds the quantity, so totals work the same for every item.
+    is_sized = models.BooleanField("has sizes", default=True)
+    customer_supplied = models.BooleanField(default=False)
+    customer_goods_received_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        db_table = "job_item"
+        ordering = ["job", "line_no"]
+        constraints = [
+            models.UniqueConstraint(fields=["job", "line_no"], name="job_item_line_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.line_no}. {self.description}"
+
+    def save(self, *args, **kwargs):
+        if not self.line_no:
+            last = JobItem.objects.filter(job=self.job_id).aggregate(n=models.Max("line_no"))
+            self.line_no = (last["n"] or 0) + 1
+        super().save(*args, **kwargs)
+
+    @property
+    def total_quantity(self) -> int:
+        return sum(s.quantity for s in self.sizes.all())
+
+
+class JobItemSize(models.Model):
+    job_item = models.ForeignKey(JobItem, on_delete=models.CASCADE, related_name="sizes")
+    size = models.CharField(max_length=10)
+    quantity = models.PositiveIntegerField()
+
+    class Meta:
+        db_table = "job_item_size"
+        constraints = [
+            models.UniqueConstraint(fields=["job_item", "size"], name="job_item_size_unique"),
+            models.CheckConstraint(condition=Q(quantity__gt=0), name="job_item_size_qty_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.size} × {self.quantity}"
+
+    @property
+    def sort_key(self):
+        if self.size in STANDARD_SIZES:
+            return (0, STANDARD_SIZES.index(self.size))
+        return (1, self.size)

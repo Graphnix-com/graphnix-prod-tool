@@ -47,7 +47,8 @@ In a second terminal, run the background worker:
 uv run python manage.py procrastinate worker
 ```
 
-Sign in at http://localhost:8000/admin/, then open http://localhost:8000/ops/health/.
+Sign in at http://localhost:8000/login/ (jobs, inquiries, customers) or /admin/; the health
+panel is at http://localhost:8000/ops/health/.
 With the `M365_*` values blank, emails print to the console instead of being sent.
 
 ## Checks (CI runs the same on every pull request)

@@ -18,6 +18,7 @@ from .models import HoldReason, Job, JobStatusHistory, Status
 
 __all__ = [
     "InvalidMove",
+    "actions_for",
     "cancel",
     "convert_inquiry",
     "create_job",
@@ -254,3 +255,34 @@ def reopen_cancelled(job: Job, *, user, note: str) -> Job:
     job.resume_status = ""
     job.cancel_reason = ""
     return _change_status(job, to_status, user, note, "user", "override")
+
+
+# --- What the job page offers ------------------------------------------------------
+
+
+def actions_for(job: Job, user) -> dict:
+    """The moves this user may make on this job now, for the job page's buttons."""
+    status = job.status
+    override = user.has_perm(flow.OVERRIDE)
+    nxt = flow.next_status(status)
+    forward = None
+    if nxt is not None and status in flow.LANE and user.has_perm(flow.LANE[status]):
+        forward = {"to": nxt, "label": Status(nxt).label}
+    jump_targets = []
+    if override and status in flow.PATH and status != Status.CLOSED:
+        jump_targets = [
+            {"to": s, "label": Status(s).label}
+            for s in flow.PATH
+            if s not in (status, nxt, Status.CLOSED)
+        ]
+    return {
+        "forward": forward,
+        "skip_mockup": override and status in flow.SKIP_MOCKUP_FROM,
+        "reopen_mockup": override and status in flow.REOPEN_MOCKUP_FROM,
+        "hold": override and status in flow.HOLDABLE,
+        "release": override and status == Status.ON_HOLD,
+        "cancel": override and status in flow.CANCELLABLE,
+        "reopen": user.has_perm(flow.REOPEN) and status == Status.CANCELLED,
+        "jump_targets": jump_targets,
+        "hold_reasons": HoldReason.choices,
+    }

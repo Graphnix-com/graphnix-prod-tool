@@ -21,10 +21,15 @@ def _plain(value):
     return value
 
 
-def record(actor, entity: models.Model, action: str, changes: dict | None = None, ip=None):
+def record(
+    actor, entity: models.Model, action: str, changes: dict | None = None, ip=None, job=None
+):
     if actor is not None and not actor.is_authenticated:
         actor = None
+    if job is None and entity._meta.label_lower == "jobs.job":
+        job = entity
     return AuditLog.objects.create(
+        job_id=job.pk if job is not None else None,
         actor=actor,
         entity_type=entity._meta.label_lower,
         entity_id=entity.pk,

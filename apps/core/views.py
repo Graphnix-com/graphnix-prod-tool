@@ -31,6 +31,11 @@ def health_panel(request):
     return render(request, "core/health.html", {"checks": checks, "overall": worst})
 
 
+@login_required
 def home(request):
-    # The job board arrives in Step 1; until then, staff land on the health panel.
+    # The Home page and board arrive in Step 1, week 3; until then, staff land on open jobs.
+    if request.user.has_perm("jobs.view_job"):
+        return redirect("jobs:list")
+    if request.user.has_perm("sales.view_inquiry"):
+        return redirect("sales:list")
     return redirect("core:health")
