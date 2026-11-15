@@ -124,7 +124,7 @@
         {% endif %}
       </div>
       <table style="margin-top:10px">
-        <tr><th>#</th><th>Method</th><th>Placement</th><th>Details</th><th>Qty</th>{% if editable %}<th></th>{% endif %}</tr>
+        <tr><th>#</th><th>Method</th><th>Placement</th><th>Details</th><th>Qty</th><th>Who</th>{% if editable %}<th></th>{% endif %}</tr>
         {% for task in item.tasks.all %}
           <tr>
             <td>{{ task.sequence }}</td>
@@ -132,11 +132,12 @@
             <td>{{ task.placement|default:"—" }}</td>
             <td>{{ task.notes|linebreaksbr|default:"—" }}</td>
             <td>{{ task.qty_planned }}</td>
+            <td style="white-space:nowrap">{% include "jobs/_task_assignee.html" %}</td>
             {% if editable %}<td style="white-space:nowrap"><a href="{% url 'jobs:task_edit' job.pk task.pk %}">Edit</a>
               <form method="post" action="{% url 'jobs:task_delete' job.pk task.pk %}" class="inline">{% csrf_token %}<button type="submit" class="danger">Remove</button></form></td>{% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="6" class="muted">No decoration yet.</td></tr>
+          <tr><td colspan="7" class="muted">No decoration yet.</td></tr>
         {% endfor %}
       </table>
       {% if editable %}<p style="margin-bottom:0"><a href="{% url 'jobs:task_add' job.pk %}?item={{ item.pk }}">Add decoration</a></p>{% endif %}
@@ -180,7 +181,7 @@
       <dt>Due date</dt><dd>{{ job.due_date|date:"D j M Y"|default:"—" }}{% if job.suggested_due_date and job.suggested_due_date != job.due_date %} <span class="muted">(14-day queue suggests {{ job.suggested_due_date|date:"D j M" }})</span>{% endif %}</dd>
       <dt>Fulfilment</dt><dd>{{ job.get_fulfillment_method_display|default:"—" }}</dd>
       <dt>NAS folder</dt><dd>{% if job.shared_drive_path %}<span class="copy" id="nas-path">{{ job.shared_drive_path }}</span> <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('nas-path').textContent)">Copy</button>{% else %}—{% endif %}</dd>
-      <dt>Source</dt><dd>{{ job.get_source_display|default:"—" }}{% if job.inquiry %} · <a href="{% url 'sales:detail' job.inquiry.pk %}">inquiry</a>{% endif %}</dd>
+      <dt>Source</dt><dd>{{ job.get_source_display|default:"—" }}{% if job.inquiry and perms.sales.view_inquiry %} · <a href="{% url 'sales:detail' job.inquiry.pk %}">inquiry</a>{% endif %}</dd>
       {% if can_see_money %}
         <dt>Payment</dt><dd>{{ job.get_payment_status_display }} <span class="muted">(from Square, Step 2)</span></dd>
       {% endif %}

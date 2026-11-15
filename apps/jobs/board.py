@@ -37,7 +37,9 @@ DUE_FILTERS = [
 
 
 def base_queryset():
-    tasks = ProductionTask.objects.select_related("decoration_method").order_by("sequence")
+    tasks = ProductionTask.objects.select_related("decoration_method", "assigned_to").order_by(
+        "sequence"
+    )
     return Job.objects.select_related("customer").prefetch_related(
         Prefetch("tasks", queryset=tasks, to_attr="task_list")
     )
@@ -52,11 +54,16 @@ class Card:
     job: Job
     flag: str | None
     methods: list[str] = field(default_factory=list)
+    assignees: list[str] = field(default_factory=list)
 
 
 def card(job: Job, flagger: Flagger) -> Card:
-    methods = list(dict.fromkeys(t.decoration_method.name for t in getattr(job, "task_list", [])))
-    return Card(job=job, flag=flagger(job), methods=methods)
+    tasks = getattr(job, "task_list", [])
+    methods = list(dict.fromkeys(t.decoration_method.name for t in tasks))
+    assignees = list(
+        dict.fromkeys(t.assigned_to.get_short_name() for t in tasks if t.assigned_to_id)
+    )
+    return Card(job=job, flag=flagger(job), methods=methods, assignees=assignees)
 
 
 # --- Filters ----------------------------------------------------------------------

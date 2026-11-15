@@ -184,7 +184,11 @@ test from step 6.
 3. **Settings → Secrets and variables → Actions → Variables**: add `DEPLOY_ENABLED` =
    `true`.
 
-## 9. Microsoft 365 app (crash emails, later customer email)
+## 9. Microsoft 365 app (crash emails, sign-in, later customer email)
+
+Sign-in for office staff, and the shop-floor PC, are set up after this section:
+see [sign-in-setup.md](sign-in-setup.md).
+
 
 1. entra.microsoft.com → **App registrations → New registration**: name
    `Graphnix Tracker`, single tenant. Note the **Application (client) ID** and

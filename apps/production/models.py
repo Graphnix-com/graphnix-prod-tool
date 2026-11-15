@@ -102,6 +102,11 @@ class ProductionTask(models.Model):
     class Meta:
         db_table = "production_task"
         ordering = ["job", "sequence", "id"]
+        permissions = [
+            ("assign_any_task", "Can assign tasks to anyone"),
+            ("assign_staff_task", "Can assign tasks to anyone but Admin/Owner"),
+            ("take_task", "Can take a task for themselves"),
+        ]
         indexes = [
             models.Index(fields=["station", "status", "queue_rank"]),
             models.Index(fields=["assigned_to", "status"]),

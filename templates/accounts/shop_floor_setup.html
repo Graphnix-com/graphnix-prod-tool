@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Set up the shop-floor PC · Graphnix tracker{% endblock %}
+{% block content %}
+<div class="card" style="max-width:560px">
+  <h1>Set up this browser as the shop-floor PC</h1>
+  {% if already %}<p class="warn">This browser is already the shop-floor PC ("{{ already.name }}"). Setting it up again replaces that.</p>{% endif %}
+  <p>Do this on the shop-floor PC itself, in the browser people will use. Afterwards:</p>
+  <ul>
+    <li>you are signed out, and the PC shows the list of names;</li>
+    <li>staff with a PIN can sign in here, and only here;</li>
+    <li>after 10 minutes without a click, it goes back to the names.</li>
+  </ul>
+  <p class="help">Don't let this browser clear cookies when it closes, or it forgets it's the shop-floor PC. To stop it, untick it in Admin › Shop-floor PCs.</p>
+  <form method="post">
+    {% csrf_token %}
+    {% include "partials/form_fields.html" %}
+    <p><button type="submit" class="primary">Make this the shop-floor PC</button></p>
+  </form>
+</div>
+{% endblock %}

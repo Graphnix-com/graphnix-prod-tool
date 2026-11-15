@@ -1,0 +1,26 @@
+{% comment %}Who has a task, and the control to change it if this person may.{% endcomment %}
+{% if can_assign and assignable_ids and task.assigned_to_id in assignable_ids or can_assign and assignable_ids and not task.assigned_to_id %}
+  {% if assign_others %}
+    <form method="post" action="{% url 'jobs:task_assign' job.pk task.pk %}" class="inline assign">
+      {% csrf_token %}
+      <select name="assignee" aria-label="Who has {{ task.decoration_method }}" onchange="this.form.submit()">
+        <option value="">Nobody</option>
+        {% for p in assignable %}<option value="{{ p.pk }}" {% if p.pk == task.assigned_to_id %}selected{% endif %}>{{ p.full_name }}</option>{% endfor %}
+      </select>
+      <noscript><button type="submit">Save</button></noscript>
+    </form>
+  {% elif task.assigned_to_id == user.pk %}
+    {{ task.assigned_to.get_short_name }}
+    <form method="post" action="{% url 'jobs:task_assign' job.pk task.pk %}" class="inline">
+      {% csrf_token %}<input type="hidden" name="assignee" value=""><button type="submit">Let go</button>
+    </form>
+  {% else %}
+    <form method="post" action="{% url 'jobs:task_assign' job.pk task.pk %}" class="inline">
+      {% csrf_token %}<input type="hidden" name="assignee" value="me"><button type="submit">Take it</button>
+    </form>
+  {% endif %}
+{% elif task.assigned_to %}
+  {{ task.assigned_to.get_short_name }}
+{% else %}
+  <span class="muted">—</span>
+{% endif %}

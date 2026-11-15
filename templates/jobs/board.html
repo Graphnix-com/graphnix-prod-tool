@@ -37,7 +37,7 @@
     url.searchParams.set("partial", "1");
     setInterval(function () {
       if (document.hidden) return;
-      fetch(url, { credentials: "same-origin" }).then(function (r) {
+      fetch(url, { credentials: "same-origin", headers: { "X-Background-Refresh": "1" } }).then(function (r) {
         if (r.ok && r.redirected === false) return r.text();
       }).then(function (html) {
         if (!html) return;
