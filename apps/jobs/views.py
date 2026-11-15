@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 from apps.production.models import DecorationMethod, ProductionTask
 from apps.sales.models import Inquiry
 
-from . import board, editing, money, services, timeline
+from . import assignment, board, editing, money, services, timeline
 from .editing import Locked
 from .flags import Flagger
 from .forms import ItemForm, JobDetailsForm, NoteForm, TaskForm
@@ -91,7 +91,8 @@ def job_search(request):
 def job_detail(request, pk):
     job = get_object_or_404(Job.objects.select_related("customer", "contact", "inquiry"), pk=pk)
     tab = request.GET.get("tab") if request.GET.get("tab") in TABS else "items"
-    items = job.items.prefetch_related("sizes", "tasks__decoration_method")
+    items = job.items.prefetch_related("sizes", "tasks__decoration_method", "tasks__assigned_to")
+    assignable = list(assignment.assignable_people(request.user))
     context = {
         "job": job,
         "tab": tab,
@@ -101,6 +102,11 @@ def job_detail(request, pk):
         "note_form": NoteForm(),
         "can_see_money": request.user.has_perm("jobs.view_money"),
         "can_see_contacts": request.user.has_perm("customers.view_contact_details"),
+        # Who this person may give tasks to; Production only ever sees themselves.
+        "assignable": assignable,
+        "assignable_ids": {p.pk for p in assignable},
+        "assign_others": any(p.pk != request.user.pk for p in assignable),
+        "can_assign": job.status not in assignment.CLOSED,
     }
     if tab == "timeline":
         context["entries"] = timeline.build(job)
@@ -245,6 +251,30 @@ def task_delete(request, pk, task_pk):
     except Locked as exc:
         messages.error(request, str(exc))
     return redirect(_job_url(task.job))
+
+
+@login_required
+@permission_required("jobs.view_job", raise_exception=True)
+@require_POST
+def task_assign(request, pk, task_pk):
+    """Give a task to someone, take it, or let it go (see jobs.assignment for who may)."""
+    job = get_object_or_404(Job, pk=pk)
+    task = get_object_or_404(ProductionTask, pk=task_pk, job=job)
+    value = request.POST.get("assignee", "")
+    if value == "me":
+        assignee = request.user
+    elif value.isdigit():
+        assignee = get_object_or_404(get_user_model(), pk=int(value))
+    else:
+        assignee = None
+    try:
+        task = assignment.assign(task, assignee, user=request.user)
+    except (PermissionDenied, ValidationError) as exc:
+        messages.error(request, " ".join(getattr(exc, "messages", [str(exc)])))
+    else:
+        who = task.assigned_to.get_short_name() if task.assigned_to else "nobody"
+        messages.success(request, f"{task.decoration_method} is now with {who}.")
+    return redirect(_job_url(job))
 
 
 @login_required
