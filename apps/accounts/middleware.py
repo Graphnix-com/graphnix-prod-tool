@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib.auth import logout
 from django.http import HttpResponse
 from django.shortcuts import redirect
+from django.urls import reverse
 
 from . import shopfloor
 
@@ -33,4 +34,13 @@ class ShopFloorSessionMiddleware:
                 return redirect("shop_floor" if device else "login")
             if not is_background(request):
                 request.session[shopfloor.SESSION_SEEN] = time.time()
+            if request.user.pin_change_required and request.path not in self._pin_paths():
+                # Signed in with a PIN an Admin set: nothing else until they choose their own.
+                if is_background(request):
+                    return HttpResponse(status=204)
+                return redirect("shop_floor_change_pin")
         return self.get_response(request)
+
+    @staticmethod
+    def _pin_paths() -> set[str]:
+        return {reverse("shop_floor_change_pin"), reverse("logout"), reverse("shop_floor")}

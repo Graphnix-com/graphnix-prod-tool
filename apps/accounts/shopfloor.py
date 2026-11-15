@@ -78,6 +78,7 @@ def people():
 class PinResult:
     ok: bool
     message: str = ""
+    must_change: bool = False  # signed in with a temporary PIN: choose a new one first
 
 
 @transaction.atomic
@@ -119,7 +120,19 @@ def try_pin(request, device: ShopFloorDevice, user_id: int, pin: str) -> PinResu
         {"method": [None, "pin"], "device": [None, device.name]},
         ip=_ip(request),
     )
-    return PinResult(True)
+    return PinResult(True, must_change=user.pin_change_required)
+
+
+@transaction.atomic
+def change_pin(request, new_pin: str) -> None:
+    """The signed-in person replaces their temporary PIN with one they chose."""
+    user = get_user_model().objects.select_for_update().get(pk=request.user.pk)
+    user.set_pin(new_pin)
+    user.save(
+        update_fields=["pin_hash", "pin_failed_attempts", "pin_locked_at", "pin_change_required"]
+    )
+    request.user.pin_change_required = False
+    record(user, user, "pin_changed", ip=_ip(request))  # never the PIN itself
 
 
 def _ip(request):

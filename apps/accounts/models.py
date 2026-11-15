@@ -8,6 +8,8 @@ from django.utils import timezone
 
 PIN_LENGTH = 4
 PIN_MAX_TRIES = 5  # then the PIN is locked until an Admin sets a new one (spec, Roles)
+# PINs too easy to guess for someone to choose for themselves.
+_EASY_PINS = {d * PIN_LENGTH for d in "0123456789"} | {"1234", "4321", "0123", "3210", "9876"}
 
 
 class UserManager(BaseUserManager):
@@ -65,6 +67,8 @@ class User(AbstractUser):
     pin_hash = models.CharField(max_length=128, blank=True, editable=False)
     pin_failed_attempts = models.PositiveSmallIntegerField(default=0, editable=False)
     pin_locked_at = models.DateTimeField(null=True, blank=True, editable=False)
+    # Set when an Admin sets the PIN; the person picks their own at their next PIN sign-in.
+    pin_change_required = models.BooleanField(default=False, editable=False)
     default_station = models.ForeignKey(
         "production.Station", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
@@ -98,17 +102,30 @@ class User(AbstractUser):
     def get_short_name(self) -> str:
         return self.full_name.split(" ")[0] if self.full_name else self.email
 
-    def set_pin(self, pin: str) -> None:
+    def set_pin(self, pin: str, *, temporary: bool = False) -> None:
+        """`temporary`: set by an Admin, so the person must choose their own next time."""
         if not (len(pin) == PIN_LENGTH and pin.isdigit()):
             raise ValueError(f"A PIN is exactly {PIN_LENGTH} digits.")
         self.pin_hash = make_password(pin)
         self.pin_failed_attempts = 0
         self.pin_locked_at = None
+        self.pin_change_required = temporary
+
+    def new_pin_problem(self, pin: str) -> str:
+        """Why someone can't choose this PIN for themselves, or "" if they can."""
+        if not (len(pin) == PIN_LENGTH and pin.isdigit()):
+            return f"A PIN is {PIN_LENGTH} digits."
+        if pin in _EASY_PINS:
+            return "That PIN is too easy to guess. Pick another."
+        if self.check_pin(pin):
+            return "Pick a PIN that's different from the one you were given."
+        return ""
 
     def clear_pin(self) -> None:
         self.pin_hash = ""
         self.pin_failed_attempts = 0
         self.pin_locked_at = None
+        self.pin_change_required = False
 
     def check_pin(self, pin: str) -> bool:
         return bool(self.pin_hash) and check_password(pin, self.pin_hash)
