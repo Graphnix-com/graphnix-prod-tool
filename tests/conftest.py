@@ -18,6 +18,16 @@ ROLE_GROUPS = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _plain_static_files(settings):
+    """With DEBUG off (as in CI), settings use the manifest storage, which needs
+    `collectstatic` first. Tests render pages without it."""
+    settings.STORAGES = {
+        **settings.STORAGES,
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+
+
 @pytest.fixture
 def make_user(db):
     def make(role: str, name: str | None = None):
