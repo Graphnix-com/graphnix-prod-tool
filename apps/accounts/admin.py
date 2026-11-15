@@ -2,7 +2,9 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 
-from .models import User
+from apps.audit.admin import AuditedAdmin
+
+from .models import AppSetting, User
 
 
 class StaffCreationForm(UserCreationForm):
@@ -28,7 +30,7 @@ class UserAdmin(BaseUserAdmin):
     readonly_fields = ("last_login", "date_joined", "entra_object_id")
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        ("Person", {"fields": ("full_name", "entra_object_id")}),
+        ("Person", {"fields": ("full_name", "entra_object_id", "default_station")}),
         (
             "Access",
             {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")},
@@ -38,3 +40,13 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {"classes": ("wide",), "fields": ("email", "full_name", "password1", "password2")}),
     )
+
+
+@admin.register(AppSetting)
+class AppSettingAdmin(AuditedAdmin):
+    list_display = ("key", "value", "updated_by", "updated_at")
+    readonly_fields = ("updated_by", "updated_at")
+
+    def save_model(self, request, obj, form, change):
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)

@@ -28,8 +28,13 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "procrastinate.contrib.django",
     "apps.accounts",
+    "apps.audit",
     "apps.core",
+    "apps.customers",
+    "apps.jobs",
     "apps.m365",
+    "apps.production",
+    "apps.sales",
 ]
 
 MIDDLEWARE = [
@@ -79,7 +84,9 @@ CACHES = {
 
 # --- Auth -------------------------------------------------------------------
 AUTH_USER_MODEL = "accounts.User"
-LOGIN_URL = "admin:login"
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "login"
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {

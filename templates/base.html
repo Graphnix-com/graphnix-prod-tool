@@ -5,33 +5,134 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Graphnix tracker{% endblock %}</title>
   <style>
-    body { font: 15px/1.5 system-ui, sans-serif; margin: 0; color: #1d1d1f; background: #f6f6f4; }
-    header { display: flex; justify-content: space-between; align-items: center;
-             padding: 12px 24px; background: #fff; border-bottom: 1px solid #ddd; }
+    :root { --ink: #1d1d1f; --quiet: #666; --line: #e3e3e0; --bg: #f6f6f4; --card: #fff;
+            --accent: #1d4ed8; --warn: #b45309; --bad: #b91c1c; --good: #15803d; }
+    * { box-sizing: border-box; }
+    body { font: 15px/1.5 system-ui, sans-serif; margin: 0; color: var(--ink); background: var(--bg); }
+    a { color: var(--accent); }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 16px;
+             padding: 10px 24px; background: var(--card); border-bottom: 1px solid var(--line); }
+    header nav a { margin-right: 16px; text-decoration: none; font-weight: 500; }
+    header nav a.here { color: var(--ink); border-bottom: 2px solid var(--accent); }
     header .env { font-size: 12px; padding: 2px 8px; border-radius: 4px; background: #eee; }
     header .env.staging { background: #fde68a; }
-    main { max-width: 960px; margin: 24px auto; padding: 0 24px; }
-    table { width: 100%; border-collapse: collapse; background: #fff; }
-    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #eee; }
+    main { max-width: 1200px; margin: 20px auto; padding: 0 24px; }
+    h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 17px; margin: 24px 0 8px; }
+    .sub { color: var(--quiet); margin: 0 0 16px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+            padding: 16px; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; background: var(--card); }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line);
+             vertical-align: top; }
+    th { font-size: 13px; color: var(--quiet); font-weight: 600; }
     .status { font-weight: 600; text-transform: uppercase; font-size: 12px; }
-    .ok { color: #15803d; } .warn { color: #b45309; } .fail { color: #b91c1c; }
-    footer { max-width: 960px; margin: 0 auto 24px; padding: 0 24px; color: #777; font-size: 12px; }
+    .ok { color: var(--good); } .warn { color: var(--warn); } .fail { color: var(--bad); }
+    .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px;
+            background: #eef2ff; color: #3730a3; font-weight: 600; }
+    .pill.customer { background: #fef3c7; color: #92400e; }
+    .pill.sooner { background: #fee2e2; color: #991b1b; }
+    .muted { color: var(--quiet); }
+    .messages { list-style: none; padding: 0; margin: 0 0 16px; }
+    .messages li { padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; }
+    .messages .success { background: #dcfce7; } .messages .error { background: #fee2e2; }
+    .messages .warning { background: #fef3c7; }
+    button, .button { font: inherit; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+                      border: 1px solid #c8c8c4; background: #fff; color: var(--ink);
+                      text-decoration: none; display: inline-block; }
+    button.primary, .button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button.danger { color: var(--bad); }
+    form.inline { display: inline; }
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 16px 0; }
+    .tabs a { padding: 8px 14px; text-decoration: none; color: var(--quiet); }
+    .tabs a.here { color: var(--ink); border-bottom: 2px solid var(--accent); font-weight: 600; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+    details.action { border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px;
+                     background: var(--card); }
+    details.action[open] { padding-bottom: 10px; }
+    details.action summary { cursor: pointer; }
+    label { display: block; font-weight: 600; font-size: 14px; margin: 10px 0 4px; }
+    input[type=text], input[type=email], input[type=number], input[type=date],
+    input[type=datetime-local], input:not([type]), select, textarea {
+      font: inherit; padding: 6px 8px; border: 1px solid #c8c8c4; border-radius: 6px;
+      width: 100%; max-width: 480px; background: #fff; }
+    input[type=checkbox] { width: auto; }
+    .help { color: var(--quiet); font-size: 13px; margin: 2px 0 0; }
+    .errorlist { color: var(--bad); list-style: none; padding: 0; margin: 4px 0; }
+    .sizes { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+             gap: 8px; max-width: 760px; }
+    .sizes label { margin: 0; font-size: 13px; }
+    .sizes input { width: 100%; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+    dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+    dl.facts dt { color: var(--quiet); } dl.facts dd { margin: 0; }
+    .timeline { list-style: none; padding: 0; margin: 0; }
+    .timeline li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .timeline .when { color: var(--quiet); font-size: 13px; }
+    .timeline .kind-status .title { font-weight: 600; }
+    .copy { font-family: ui-monospace, monospace; background: #f3f3f1; padding: 2px 6px;
+            border-radius: 4px; }
+    .lane { margin-bottom: 18px; }
+    .lane h2 { margin: 0 0 6px; font-size: 14px; text-transform: uppercase; letter-spacing: .04em;
+               color: var(--quiet); }
+    .columns { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .column { background: #ecece8; border-radius: 8px; padding: 8px; min-height: 64px; }
+    .column h3 { margin: 0 0 6px; font-size: 13px; display: flex; justify-content: space-between; }
+    .jobcard { display: block; background: var(--card); border: 1px solid var(--line);
+               border-radius: 6px; padding: 7px 9px; margin-bottom: 6px; color: var(--ink);
+               text-decoration: none; font-size: 13px; line-height: 1.4; }
+    .jobcard:hover { border-color: var(--accent); }
+    .jobcard.overdue { border-left: 4px solid var(--bad); }
+    .jobcard.at_risk { border-left: 4px solid var(--warn); }
+    .jobcard .num { font-weight: 700; }
+    .flag { font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .flag.overdue { color: var(--bad); } .flag.at_risk { color: var(--warn); }
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin-bottom: 14px; }
+    .filters label { margin: 0 0 2px; font-size: 12px; }
+    .filters select, .filters input { width: auto; min-width: 140px; }
+    .filters label.check { display: flex; align-items: center; gap: 6px; font-size: 13px;
+                           padding-bottom: 8px; }
+    .filters label.check input { min-width: 0; }
+    .panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .panel h2 { margin-top: 0; display: flex; justify-content: space-between; }
+    .panel h3 { font-size: 13px; color: var(--quiet); margin: 10px 0 4px; text-transform: uppercase; }
+    footer { max-width: 1200px; margin: 0 auto 24px; padding: 0 24px; color: #777; font-size: 12px; }
   </style>
 </head>
 <body>
   <header>
-    <strong>Graphnix tracker</strong>
-    <span>
+    <nav>
+      <strong style="margin-right:20px">Graphnix tracker</strong>
+      {% if user.is_authenticated %}
+        {% if perms.jobs.view_money %}<a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}here{% endif %}">Home</a>{% endif %}
+        {% if perms.jobs.view_job %}<a href="{% url 'jobs:list' %}" class="{% if request.resolver_match.app_name == 'jobs' %}here{% endif %}">Board</a>{% endif %}
+        {% if perms.sales.view_inquiry %}<a href="{% url 'sales:list' %}" class="{% if request.resolver_match.app_name == 'sales' %}here{% endif %}">Inquiries</a>{% endif %}
+        {% if perms.customers.view_customer %}<a href="{% url 'customers:list' %}" class="{% if request.resolver_match.app_name == 'customers' %}here{% endif %}">Customers</a>{% endif %}
+        {% if user.is_staff %}<a href="{% url 'admin:index' %}">Admin</a>{% endif %}
+      {% endif %}
+    </nav>
+    <span style="display:flex;align-items:center;gap:8px">
+      {% if perms.jobs.view_job %}
+        <form method="get" action="{% url 'jobs:search' %}" class="inline" role="search">
+          <input type="search" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Job no. or customer" aria-label="Search jobs" style="width:220px;padding:5px 8px;border:1px solid #c8c8c4;border-radius:6px;font:inherit">
+        </form>
+      {% endif %}
       <span class="env {{ APP_ENV }}">{{ APP_ENV }}</span>
       {% if user.is_authenticated %}
         &nbsp;{{ user.get_short_name }}
-        <form method="post" action="{% url 'admin:logout' %}" style="display:inline">
+        <form method="post" action="{% url 'logout' %}" class="inline">
           {% csrf_token %}<button type="submit">Sign out</button>
         </form>
       {% endif %}
     </span>
   </header>
-  <main>{% block content %}{% endblock %}</main>
+  <main>
+    {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
   <footer>Version {{ GIT_SHA }}</footer>
 </body>
 </html>

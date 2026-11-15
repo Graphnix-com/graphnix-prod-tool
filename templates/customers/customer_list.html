@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Customers · Graphnix tracker{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center">
+  <h1>Customers</h1>
+  {% if perms.customers.add_customer %}<a class="button primary" href="{% url 'customers:new' %}">New customer</a>{% endif %}
+</div>
+<form method="get" style="display:flex;gap:8px;max-width:600px;margin:12px 0">
+  <input type="text" name="q" value="{{ query }}" placeholder="Search name, company, email or phone">
+  <button type="submit">Search</button>
+</form>
+<table>
+  <tr><th>Name</th><th>Company</th>{% if perms.customers.view_contact_details %}<th>Email</th><th>Phone</th>{% endif %}</tr>
+  {% for c in customers %}
+    <tr>
+      <td><a href="{% url 'customers:detail' c.pk %}">{{ c.display_name }}</a></td>
+      <td>{{ c.company_name|default:"—" }}</td>
+      {% if perms.customers.view_contact_details %}<td>{{ c.email|default:"—" }}</td><td>{{ c.phone|default:"—" }}</td>{% endif %}
+    </tr>
+  {% empty %}
+    <tr><td colspan="4" class="muted">No customers{% if query %} match “{{ query }}”{% endif %}.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

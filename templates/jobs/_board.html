@@ -1,0 +1,13 @@
+{% for lane, columns in lanes %}
+  <section class="lane">
+    <h2>{{ lane }}</h2>
+    <div class="columns">
+      {% for status, label, cards in columns %}
+        <div class="column" data-status="{{ status }}">
+          <h3><span>{{ label }}</span><span class="muted">{{ cards|length }}</span></h3>
+          {% for c in cards %}{% include "jobs/_card.html" %}{% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+{% endfor %}

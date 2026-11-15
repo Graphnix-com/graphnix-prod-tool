@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ customer.display_name }} · Graphnix tracker{% endblock %}
+{% block content %}
+<p class="muted" style="margin:0"><a href="{% url 'customers:list' %}">Customers</a> /</p>
+<div style="display:flex;justify-content:space-between;align-items:center">
+  <h1>{{ customer.display_name }}{% if customer.company_name %} <span class="muted">· {{ customer.company_name }}</span>{% endif %}</h1>
+  {% if can_edit %}<a class="button" href="{% url 'customers:edit' customer.pk %}">Edit</a>{% endif %}
+</div>
+{% if customer.notifications_opt_out %}<p class="warn">No automatic emails to this customer.</p>{% endif %}
+
+<div class="grid2">
+  <div class="card">
+    <h2 style="margin-top:0">Details</h2>
+    <dl class="facts">
+      {% if can_see_contacts %}
+        <dt>Email</dt><dd>{{ customer.email|default:"—" }}</dd>
+        <dt>Phone</dt><dd>{{ customer.phone|default:"—" }}</dd>
+      {% endif %}
+      <dt>Notes</dt><dd>{{ customer.notes|linebreaksbr|default:"—" }}</dd>
+    </dl>
+    {% if can_see_contacts %}
+      {% for contact in customer.contacts.all %}
+        <h2>{% if contact.is_primary %}Main contact{% else %}Contact{% endif %}</h2>
+        <p style="margin:0">{{ contact.full_name }} · {{ contact.email|default:"no email" }} · {{ contact.phone|default:"no phone" }}</p>
+      {% endfor %}
+      {% for a in customer.addresses.all %}
+        <h2>{{ a.get_kind_display }} address</h2>
+        <p style="margin:0">{{ a.line1 }}{% if a.line2 %}, {{ a.line2 }}{% endif %}<br>{{ a.city }} {{ a.province }} {{ a.postal_code }}</p>
+      {% endfor %}
+    {% endif %}
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Jobs</h2>
+    <table>
+      {% for job in jobs %}
+        <tr><td><a href="{% url 'jobs:detail' job.pk %}">{{ job.display_number }}</a></td><td>{{ job.title }}</td><td>{{ job.get_status_display }}</td></tr>
+      {% empty %}
+        <tr><td class="muted">No jobs yet.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}

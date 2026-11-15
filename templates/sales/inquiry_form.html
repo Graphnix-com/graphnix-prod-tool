@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}New inquiry · Graphnix tracker{% endblock %}
+{% block content %}
+<p class="muted" style="margin:0"><a href="{% url 'sales:list' %}">Inquiries</a> /</p>
+<h1>New inquiry</h1>
+<p class="sub">Log the request now; you'll match or create the customer on the next screen.</p>
+<form method="post" class="card">
+  {% csrf_token %}
+  {% include "partials/form_fields.html" %}
+  <p><button type="submit" class="primary">Log inquiry</button> <a href="{% url 'sales:list' %}">Cancel</a></p>
+</form>
+{% endblock %}

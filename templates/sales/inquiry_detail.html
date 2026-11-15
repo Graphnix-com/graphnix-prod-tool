@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Inquiry · Graphnix tracker{% endblock %}
+{% block content %}
+<p class="muted" style="margin:0"><a href="{% url 'sales:list' %}">Inquiries</a> /</p>
+<h1>{{ inquiry.subject|default:"Inquiry" }}</h1>
+<p class="sub">{{ inquiry.get_channel_display }} · received {{ inquiry.received_at|date:"D j M Y, g:i a" }} · {{ inquiry.get_status_display }}</p>
+
+<div class="card">
+  <dl class="facts">
+    <dt>From</dt><dd>{{ inquiry.from_name|default:"—" }}</dd>
+    {% if perms.customers.view_contact_details %}
+      <dt>Email</dt><dd>{{ inquiry.from_email|default:"—" }}</dd>
+      <dt>Phone</dt><dd>{{ inquiry.from_phone|default:"—" }}</dd>
+    {% endif %}
+    <dt>Customer</dt><dd>{% if inquiry.customer %}<a href="{% url 'customers:detail' inquiry.customer.pk %}">{{ inquiry.customer }}</a>{% else %}<span class="warn">Not matched yet</span>{% endif %}</dd>
+    <dt>Details</dt><dd>{{ inquiry.details|linebreaksbr|default:"—" }}</dd>
+  </dl>
+  {% if inquiry.status == "converted" and inquiry.job %}<p style="margin-bottom:0">Became job <a href="{% url 'jobs:detail' inquiry.job.pk %}">{{ inquiry.job.display_number }}</a>.</p>{% endif %}
+</div>
+
+{% if is_open and perms.sales.change_inquiry %}
+  <h2>1. Customer</h2>
+  <div class="card">
+    <form method="get" style="display:flex;gap:8px;max-width:600px">
+      <input type="text" name="q" value="{{ query }}" placeholder="Search name, company, email or phone">
+      <button type="submit">Search</button>
+    </form>
+    {% if matches %}
+      <table style="margin-top:10px">
+        <tr><th>{% if query %}Results{% else %}Possible matches{% endif %}</th><th></th></tr>
+        {% for c in matches %}
+          <tr><td>{{ c }}{% if perms.customers.view_contact_details %} <span class="muted">{{ c.email }} {{ c.phone }}</span>{% endif %}</td>
+            <td style="text-align:right"><form method="post" action="{% url 'sales:customer' inquiry.pk %}" class="inline">{% csrf_token %}
+              <input type="hidden" name="customer" value="{{ c.pk }}"><button type="submit">{% if inquiry.customer_id == c.pk %}Linked{% else %}Use this customer{% endif %}</button></form></td></tr>
+        {% endfor %}
+      </table>
+    {% elif query %}<p class="muted">No customers match “{{ query }}”.</p>{% endif %}
+    {% if perms.customers.add_customer %}
+      <form method="post" action="{% url 'sales:customer' inquiry.pk %}" style="margin-top:10px">
+        {% csrf_token %}<input type="hidden" name="customer" value="new">
+        <button type="submit">Create a new customer from this inquiry</button>
+      </form>
+    {% endif %}
+  </div>
+
+  {% if can_convert %}
+    <h2>2. Convert to job</h2>
+    <form method="post" action="{% url 'sales:convert' inquiry.pk %}" class="card">
+      {% csrf_token %}
+      {% if not inquiry.customer %}<p class="warn">Match or create the customer first.</p>{% endif %}
+      {% include "partials/form_fields.html" with form=convert_form %}
+      <p style="margin-bottom:0"><button type="submit" class="primary" {% if not inquiry.customer %}disabled{% endif %}>Create job</button></p>
+    </form>
+  {% endif %}
+
+  <form method="post" action="{% url 'sales:decline' inquiry.pk %}" onsubmit="return confirm('Decline this inquiry?')">
+    {% csrf_token %}<button type="submit" class="danger">Decline inquiry</button>
+  </form>
+{% endif %}
+{% endblock %}

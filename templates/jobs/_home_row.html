@@ -1,0 +1,8 @@
+<div style="padding:5px 0;border-bottom:1px solid var(--line)">
+  <a href="{% url 'jobs:detail' c.job.pk %}"><strong>{{ c.job.display_number }}</strong></a>
+  {{ c.job.customer.display_name }} · {{ c.job.title|truncatechars:40 }}
+  <span class="muted">· {{ c.job.get_status_display }} since {{ c.job.status_changed_at|date:"j M" }}</span>
+  {% if c.job.due_date %}<span class="muted">· due {{ c.job.due_date|date:"D j M" }}</span>{% endif %}
+  {% if c.flag %}<span class="flag {{ c.flag }}">{% if c.flag == "overdue" %}Overdue{% else %}At risk{% endif %}</span>{% endif %}
+  {% if c.job.priority == 1 %}<span class="pill sooner">Sooner</span>{% endif %}
+</div>

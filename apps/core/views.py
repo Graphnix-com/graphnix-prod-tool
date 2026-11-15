@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
@@ -29,8 +29,3 @@ def health_panel(request):
         else health.OK
     )
     return render(request, "core/health.html", {"checks": checks, "overall": worst})
-
-
-def home(request):
-    # The job board arrives in Step 1; until then, staff land on the health panel.
-    return redirect("core:health")

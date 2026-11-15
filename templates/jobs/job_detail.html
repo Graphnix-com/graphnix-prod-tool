@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}{{ job.display_number }} · {{ job.title }}{% endblock %}
+{% block content %}
+<p class="muted" style="margin:0"><a href="{% url 'jobs:list' %}">Board</a> /</p>
+<h1>{{ job.display_number }} · {{ job.title }}</h1>
+<p class="sub">
+  {% if perms.customers.view_customer %}<a href="{% url 'customers:detail' job.customer.pk %}">{{ job.customer }}</a>{% else %}{{ job.customer.display_name }}{% endif %}
+  {% if job.square_number %}· internal {{ job.job_number }}{% endif %}
+  · Due {% if job.due_date %}{{ job.due_date|date:"D j M Y" }}{% else %}<span class="muted">not set</span>{% endif %}
+  {% if job.priority == 1 %}<span class="pill sooner">Sooner if possible</span>{% endif %}
+</p>
+
+<div class="card">
+  <p style="margin:0 0 10px">
+    <span class="status">{{ job.get_status_display }}</span>
+    {% if job.waiting_on == "customer" %}<span class="pill customer">Waiting on customer</span>{% endif %}
+    {% if job.status == "on_hold" %}<span class="muted">· {{ job.get_hold_reason_code_display }}{% if job.hold_reason %}: {{ job.hold_reason }}{% endif %} · returns to {{ job.get_resume_status_display }}</span>{% endif %}
+    {% if job.status == "cancelled" %}<span class="muted">· {{ job.cancel_reason }}</span>{% endif %}
+  </p>
+  <div class="actions">
+    {% if actions.forward %}
+      <form method="post" action="{% url 'jobs:action' job.pk %}" class="inline">
+        {% csrf_token %}<input type="hidden" name="action" value="move">
+        <input type="hidden" name="to_status" value="{{ actions.forward.to }}">
+        <input type="hidden" name="tab" value="{{ tab }}">
+        <button type="submit" class="primary">Move to {{ actions.forward.label }}</button>
+      </form>
+    {% endif %}
+    {% if actions.skip_mockup %}
+      <details class="action"><summary>Skip mock-up</summary>
+        <form method="post" action="{% url 'jobs:action' job.pk %}">
+          {% csrf_token %}<input type="hidden" name="action" value="skip_mockup">
+          <label>Reason</label><input type="text" name="note" required placeholder="e.g. online store order">
+          <p><button type="submit">Skip to Materials ordered</button></p>
+        </form>
+      </details>
+    {% endif %}
+    {% if actions.reopen_mockup %}
+      <details class="action"><summary>Reopen mock-up</summary>
+        <form method="post" action="{% url 'jobs:action' job.pk %}">
+          {% csrf_token %}<input type="hidden" name="action" value="reopen_mockup">
+          <label>Reason</label><input type="text" name="note" required placeholder="e.g. customer wants navy ink">
+          <p><button type="submit">Back to Mock-up in progress</button></p>
+        </form>
+      </details>
+    {% endif %}
+    {% if actions.jump_targets %}
+      <details class="action"><summary>Move to another stage</summary>
+        <form method="post" action="{% url 'jobs:action' job.pk %}">
+          {% csrf_token %}<input type="hidden" name="action" value="move">
+          <label>Stage</label>
+          <select name="to_status">{% for t in actions.jump_targets %}<option value="{{ t.to }}">{{ t.label }}</option>{% endfor %}</select>
+          <label>Reason</label><input type="text" name="note" required>
+          <p><button type="submit">Move</button></p>
+        </form>
+      </details>
+    {% endif %}
+    {% if actions.hold %}
+      <details class="action"><summary>Put on hold</summary>
+        <form method="post" action="{% url 'jobs:action' job.pk %}">
+          {% csrf_token %}<input type="hidden" name="action" value="hold">
+          <label>Reason</label>
+          <select name="reason_code">{% for value, label in actions.hold_reasons %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+          <label>Note <span class="muted">(needed for Other)</span></label><input type="text" name="note">
+          <p><button type="submit">Put on hold</button></p>
+        </form>
+      </details>
+    {% endif %}
+    {% if actions.release %}
+      <form method="post" action="{% url 'jobs:action' job.pk %}" class="inline">
+        {% csrf_token %}<input type="hidden" name="action" value="release">
+        <button type="submit" class="primary">Take off hold</button>
+      </form>
+    {% endif %}
+    {% if actions.cancel %}
+      <details class="action"><summary>Cancel job</summary>
+        <form method="post" action="{% url 'jobs:action' job.pk %}">
+          {% csrf_token %}<input type="hidden" name="action" value="cancel">
+          <label>Reason</label><input type="text" name="note" required>
+          <p><button type="submit" class="danger">Cancel this job</button></p>
+        </form>
+      </details>
+    {% endif %}
+    {% if actions.reopen %}
+      <details class="action"><summary>Reopen job</summary>
+        <form method="post" action="{% url 'jobs:action' job.pk %}">
+          {% csrf_token %}<input type="hidden" name="action" value="reopen">
+          <label>Reason</label><input type="text" name="note" required>
+          <p><button type="submit">Reopen at {{ job.get_resume_status_display }}</button></p>
+        </form>
+      </details>
+    {% endif %}
+  </div>
+</div>
+
+<nav class="tabs">
+  <a href="?tab=items" class="{% if tab == 'items' %}here{% endif %}">Items and tasks</a>
+  <a href="?tab=timeline" class="{% if tab == 'timeline' %}here{% endif %}">Timeline</a>
+  <a href="?tab=details" class="{% if tab == 'details' %}here{% endif %}">Details</a>
+</nav>
+
+{% if tab == "items" %}
+  {% if editable %}<p><a class="button" href="{% url 'jobs:item_add' job.pk %}">Add item</a></p>{% endif %}
+  {% for item in items %}
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;gap:16px">
+        <div>
+          <strong>{{ item.line_no }}. {{ item.description }}</strong>
+          {% if item.color %}· {{ item.color }}{% endif %}
+          {% if item.item_no %}<span class="muted">· item no. {{ item.item_no }}</span>{% endif %}
+          {% if item.customer_supplied %}<span class="pill">Customer supplied{% if item.customer_goods_received_at %}, checked in{% endif %}</span>{% endif %}
+          <div class="muted">
+            {% if item.is_sized %}{% for s in item.sizes.all %}{{ s.size }} {{ s.quantity }}{% if not forloop.last %} · {% endif %}{% endfor %} — {% endif %}{{ item.total_quantity }} total
+          </div>
+          {% if item.notes %}<div>{{ item.notes|linebreaksbr }}</div>{% endif %}
+        </div>
+        {% if editable %}
+          <div style="white-space:nowrap">
+            <a href="{% url 'jobs:item_edit' job.pk item.pk %}">Edit</a>
+            <form method="post" action="{% url 'jobs:item_delete' job.pk item.pk %}" class="inline" onsubmit="return confirm('Remove this item and its tasks?')">
+              {% csrf_token %}<button type="submit" class="danger">Remove</button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
+      <table style="margin-top:10px">
+        <tr><th>#</th><th>Method</th><th>Placement</th><th>Details</th><th>Qty</th>{% if editable %}<th></th>{% endif %}</tr>
+        {% for task in item.tasks.all %}
+          <tr>
+            <td>{{ task.sequence }}</td>
+            <td>{{ task.decoration_method }}{% if task.outsourced %} <span class="pill">Supplier</span>{% endif %}</td>
+            <td>{{ task.placement|default:"—" }}</td>
+            <td>{{ task.notes|linebreaksbr|default:"—" }}</td>
+            <td>{{ task.qty_planned }}</td>
+            {% if editable %}<td style="white-space:nowrap"><a href="{% url 'jobs:task_edit' job.pk task.pk %}">Edit</a>
+              <form method="post" action="{% url 'jobs:task_delete' job.pk task.pk %}" class="inline">{% csrf_token %}<button type="submit" class="danger">Remove</button></form></td>{% endif %}
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="muted">No decoration yet.</td></tr>
+        {% endfor %}
+      </table>
+      {% if editable %}<p style="margin-bottom:0"><a href="{% url 'jobs:task_add' job.pk %}?item={{ item.pk }}">Add decoration</a></p>{% endif %}
+    </div>
+  {% empty %}
+    <p class="muted">No items yet.</p>
+  {% endfor %}
+  {% if not editable and perms.jobs.change_job and items %}<p class="muted">Items and tasks are locked once the job is in production.</p>{% endif %}
+
+{% elif tab == "timeline" %}
+  {% if perms.jobs.add_jobnote %}
+    <form method="post" action="{% url 'jobs:note_add' job.pk %}" class="card">
+      {% csrf_token %}{% include "partials/form_fields.html" with form=note_form %}
+      <p style="margin-bottom:0"><button type="submit">Add note</button></p>
+    </form>
+  {% endif %}
+  <ul class="timeline">
+    {% for e in entries %}
+      <li class="kind-{{ e.kind }}">
+        <div class="when">{{ e.at|date:"D j M Y, g:i a" }} · {{ e.who }}</div>
+        <div class="title">{{ e.title }}</div>
+        {% if e.detail %}<div class="muted">{{ e.detail|linebreaksbr }}</div>{% endif %}
+      </li>
+    {% empty %}
+      <li class="muted">Nothing yet.</li>
+    {% endfor %}
+  </ul>
+
+{% else %}
+  <div class="card">
+    <dl class="facts">
+      <dt>Square job number</dt><dd>{{ job.square_number|default:"—" }}</dd>
+      <dt>Internal number</dt><dd>{{ job.job_number }}</dd>
+      <dt>Square estimate</dt><dd>{{ job.square_estimate_ref|default:"—" }}</dd>
+      <dt>Quote sent</dt><dd>{{ job.quote_sent_at|date:"j M Y"|default:"—" }}</dd>
+      <dt>Quote approved</dt><dd>{{ job.quote_approved_at|date:"j M Y"|default:"—" }}</dd>
+      <dt>Customer</dt><dd>{{ job.customer.display_name }}{% if job.customer.company_name %} ({{ job.customer.company_name }}){% endif %}</dd>
+      {% if can_see_contacts %}
+        <dt>Contact</dt><dd>{% if job.contact %}{{ job.contact.full_name }} {{ job.contact.email }} {{ job.contact.phone }}{% else %}{{ job.customer.email }} {{ job.customer.phone }}{% endif %}</dd>
+      {% endif %}
+      <dt>Due date</dt><dd>{{ job.due_date|date:"D j M Y"|default:"—" }}{% if job.suggested_due_date and job.suggested_due_date != job.due_date %} <span class="muted">(14-day queue suggests {{ job.suggested_due_date|date:"D j M" }})</span>{% endif %}</dd>
+      <dt>Fulfilment</dt><dd>{{ job.get_fulfillment_method_display|default:"—" }}</dd>
+      <dt>NAS folder</dt><dd>{% if job.shared_drive_path %}<span class="copy" id="nas-path">{{ job.shared_drive_path }}</span> <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('nas-path').textContent)">Copy</button>{% else %}—{% endif %}</dd>
+      <dt>Source</dt><dd>{{ job.get_source_display|default:"—" }}{% if job.inquiry %} · <a href="{% url 'sales:detail' job.inquiry.pk %}">inquiry</a>{% endif %}</dd>
+      {% if can_see_money %}
+        <dt>Payment</dt><dd>{{ job.get_payment_status_display }} <span class="muted">(from Square, Step 2)</span></dd>
+      {% endif %}
+      <dt>Automatic emails</dt><dd>{% if job.notifications_opt_out %}Off for this job{% else %}On{% endif %}</dd>
+    </dl>
+    {% if perms.jobs.change_job %}<p style="margin-bottom:0"><a class="button" href="{% url 'jobs:edit' job.pk %}">Edit details</a></p>{% endif %}
+  </div>
+{% endif %}
+{% endblock %}

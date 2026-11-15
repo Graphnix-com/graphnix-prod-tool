@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{% if item %}Edit item{% else %}Add item{% endif %} · {{ job.display_number }}{% endblock %}
+{% block content %}
+<p class="muted" style="margin:0"><a href="{% url 'jobs:detail' job.pk %}">{{ job.display_number }}</a> /</p>
+<h1>{% if item %}Edit item {{ item.line_no }}{% else %}Add item{% endif %}</h1>
+<form method="post" class="card">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  <div class="grid2">
+    <div>
+      <label for="{{ form.description.id_for_label }}">Description</label>{{ form.description }}
+      <p class="help">{{ form.description.help_text }}</p>{{ form.description.errors }}
+    </div>
+    <div>
+      <label for="{{ form.item_no.id_for_label }}">Item no. <span class="muted">(optional)</span></label>{{ form.item_no }}{{ form.item_no.errors }}
+      <label for="{{ form.color.id_for_label }}">Colour <span class="muted">(optional)</span></label>{{ form.color }}{{ form.color.errors }}
+    </div>
+  </div>
+  <label>{{ form.is_sized }} Has sizes</label>
+  <p class="help">Untick for towels, mugs, knives, pens, signs, banners, stickers, wraps.</p>
+  <div id="sized">
+    <div class="sizes">
+      {% for field in form.size_fields %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endfor %}
+    </div>
+    <label for="{{ form.other_sizes.id_for_label }}">Other sizes <span class="muted">(optional)</span></label>{{ form.other_sizes }}
+    <p class="help">{{ form.other_sizes.help_text }}</p>{{ form.other_sizes.errors }}
+  </div>
+  <div id="unsized">
+    <label for="{{ form.quantity.id_for_label }}">Quantity</label>{{ form.quantity }}{{ form.quantity.errors }}
+  </div>
+  <label>{{ form.customer_supplied }} Customer supplies these</label>
+  <label for="{{ form.notes.id_for_label }}">Notes <span class="muted">(optional)</span></label>{{ form.notes }}
+  <p><button type="submit" class="primary">Save item</button> <a href="{% url 'jobs:detail' job.pk %}">Cancel</a></p>
+</form>
+<script>
+  (function () {
+    var box = document.getElementById("{{ form.is_sized.id_for_label }}");
+    function show() {
+      document.getElementById("sized").style.display = box.checked ? "" : "none";
+      document.getElementById("unsized").style.display = box.checked ? "none" : "";
+    }
+    box.addEventListener("change", show); show();
+  })();
+</script>
+{% endblock %}

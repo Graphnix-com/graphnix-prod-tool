@@ -84,7 +84,7 @@ def test_garbled_stamp_counts_as_missing(settings, tmp_path):
 def test_panel_requires_sign_in(client):
     response = client.get(reverse("core:health"))
     assert response.status_code == 302
-    assert "/admin/login/" in response["Location"]
+    assert response["Location"].startswith("/login/")
 
 
 def test_panel_forbidden_without_permission(client):
