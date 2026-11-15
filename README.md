@@ -18,6 +18,7 @@ Docker Compose · Caddy · Microsoft Graph for email.
 | `deploy/caddy/` | The HTTPS front door shared by production and staging. |
 | `deploy/deploy.sh` | Build, migrate and restart the checked-out commit. |
 | `deploy/host/` | Server scripts: nightly backup, backup pull, hung-container restart, cron file. |
+| `deploy/shop-nas/` | Script the shop's Synology NAS runs nightly to pull the backups. |
 | `docs/server-setup.md` | One-time setup of the VPS, Microsoft 365 app and deploys. |
 
 ## Local development

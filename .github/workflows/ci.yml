@@ -27,7 +27,7 @@ jobs:
       SECRET_KEY: ci-only-not-secret
       DATABASE_URL: postgres://graphnix:graphnix@localhost:5432/graphnix
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --frozen
       - name: Lint
@@ -42,7 +42,7 @@ jobs:
   image:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Docker image builds
         run: docker build --build-arg GIT_SHA=${GITHUB_SHA::7} -t graphnix-tracker:ci .
 

@@ -115,21 +115,58 @@ sudo chown backup-pull /srv/graphnix/backups/state/last_pull
 which rrsync   # expect /usr/bin/rrsync
 ```
 
-Create a key on the shop's backup server, then add its public key to
-`/var/lib/backup-pull/.ssh/authorized_keys` on the VPS, all on one line:
+If `/etc/ssh/sshd_config` (or a file in `sshd_config.d/`) has an `AllowUsers` or
+`AllowGroups` line from hardening, add `backup-pull` (and `deploy`) to it and run
+`sudo systemctl reload ssh`.
 
-```
-command="/usr/local/bin/backup-pull-command",restrict ssh-ed25519 AAAA... shop-backup-server
-```
+### On the shop's Synology NAS
 
-The shop's server then runs, nightly after 10:00 UTC:
+The NAS pulls nightly with `deploy/shop-nas/pull-graphnix-backups.sh` and keeps 30 days.
+The paths below assume `volume1`; adjust if the NAS uses another volume.
 
-```bash
-rsync -a --exclude '*.part' backup-pull@jobs.graphnix.com:production/ /path/on/shop/server/graphnix/
-```
+1. **DSM → Control Panel → Shared Folder → Create** `graphnix-backups`. Tick
+   *Hide this shared folder in "My Network Places"*. Permissions: administrators
+   Read/Write, everyone else No access.
+2. **Control Panel → Terminal & SNMP**: tick *Enable SSH service* (you can turn it off
+   again at the end; the nightly task does not need it).
+3. From your PC, `ssh <dsm admin>@<nas address>`, then `sudo -i`, and:
+   ```bash
+   mkdir -m 700 /volume1/graphnix-backups/_config
+   cd /volume1/graphnix-backups/_config
+   ssh-keygen -t ed25519 -N "" -f id_ed25519 -C shop-backup-server
+   ssh-keyscan -t ed25519 jobs.graphnix.com > known_hosts
+   ssh-keygen -lf known_hosts
+   cat id_ed25519.pub
+   ```
+   The fingerprint must match `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the
+   VPS. The key can only download already-encrypted files, so it stays on the NAS.
+4. On the VPS, authorize that public key (all on one line):
+   ```bash
+   echo 'command="/usr/local/bin/backup-pull-command",restrict ssh-ed25519 AAAA... shop-backup-server' | sudo tee /var/lib/backup-pull/.ssh/authorized_keys
+   sudo chown backup-pull:backup-pull /var/lib/backup-pull/.ssh/authorized_keys
+   sudo chmod 600 /var/lib/backup-pull/.ssh/authorized_keys
+   ```
+5. Back on the NAS, create `/volume1/graphnix-backups/_config/pull-graphnix-backups.sh`
+   with the contents of `deploy/shop-nas/pull-graphnix-backups.sh` (`vi` is built in),
+   then test it:
+   ```bash
+   sh /volume1/graphnix-backups/_config/pull-graphnix-backups.sh staging
+   ls -l /volume1/graphnix-backups/staging
+   ```
+   The health panel's "Backup copied to the shop's backup server" row turns OK.
+6. **Control Panel → Task Scheduler → Create → Scheduled Task → User-defined script**:
+   - General: task `Pull Graphnix backups`, user `root`.
+   - Schedule: daily, **04:00** (NAS local time; that is after the 09:30 UTC backup in
+     both summer and winter).
+   - Task Settings: tick *Send run details by email* and *only when the script
+     terminates abnormally* (needs DSM's email notifications set up). Run command:
+     `sh /volume1/graphnix-backups/_config/pull-graphnix-backups.sh production`
+     (use `staging` until production is live).
+7. If the NAS has a Hyper Backup task to the cloud or a USB drive, add the
+   `graphnix-backups` folder to it for an off-site copy.
 
-and keeps 30 days of copies. How to schedule that depends on the backup server
-(Synology, Windows, Veeam, ...): to be filled in once it is known.
+**Restore test:** copy one `db-*.dump.age` from the share to your PC and run the restore
+test from step 6.
 
 ## 8. Turn on automatic deploys
 
