@@ -17,6 +17,7 @@
     header .env { font-size: 12px; padding: 2px 8px; border-radius: 4px; background: #eee; }
     header .env.staging { background: #fde68a; }
     main { max-width: 1200px; margin: 20px auto; padding: 0 24px; }
+    main.wide { max-width: 1600px; }
     h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 17px; margin: 24px 0 8px; }
     .sub { color: var(--quiet); margin: 0 0 16px; }
     .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px;
@@ -85,6 +86,18 @@
     .jobcard.at_risk { border-left: 4px solid var(--warn); }
     .jobcard .num { font-weight: 700; }
     .jobcard .who { font-size: 12px; font-weight: 600; }
+    .jobcard .stage { float: right; font-size: 11px; font-weight: 600; color: var(--quiet);
+                      text-transform: uppercase; }
+    .board-grid { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 16px;
+                  align-items: start; }
+    .mine { background: #e6ecfb; border-radius: 8px; padding: 8px; position: sticky; top: 10px;
+            max-height: calc(100vh - 20px); overflow-y: auto; }
+    .mine h2 { margin: 0 0 8px; font-size: 13px; display: flex; justify-content: space-between;
+               text-transform: uppercase; letter-spacing: .04em; }
+    @media (max-width: 900px) {
+      .board-grid { grid-template-columns: 1fr; }
+      .mine { position: static; max-height: none; }
+    }
     form.assign select { width: auto; min-width: 130px; padding: 3px 6px; }
     .flag { font-size: 11px; font-weight: 700; text-transform: uppercase; }
     .flag.overdue { color: var(--bad); } .flag.at_risk { color: var(--warn); }
@@ -142,7 +155,7 @@
       {% endif %}
     </span>
   </header>
-  <main>
+  <main class="{% block main_class %}{% endblock %}">
     {% if messages %}
       <ul class="messages">
         {% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}

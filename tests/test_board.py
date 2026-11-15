@@ -250,3 +250,42 @@ def test_search_finds_closed_jobs_too(client, manager, customer):
     client.force_login(manager)
     page = client.get(reverse("jobs:search") + "?q=last year").content.decode()
     assert "Last year&#x27;s order" in page
+
+
+# --- Assigned to me -----------------------------------------------------------------
+
+
+def test_assigned_to_me_lists_my_jobs_across_stages_soonest_first(customer, make_user):
+    rommel = make_user("production", "Rommel")
+    isaac = make_user("production", "Isaac")
+    later = make(customer, Status.QUOTING, "later", due_date=TODAY + timedelta(days=20))
+    undated = make(customer, Status.IN_PRODUCTION, "undated")
+    soon = make(customer, Status.QA, "soon", due_date=TODAY + timedelta(days=2))
+    held = make(customer, Status.ON_HOLD, "held", due_date=TODAY + timedelta(days=5))
+    closed = make(customer, Status.CLOSED, "closed", due_date=TODAY)
+    cancelled = make(customer, Status.CANCELLED, "cancelled", due_date=TODAY)
+    theirs = make(customer, Status.QUOTING, "Isaac's", due_date=TODAY)
+    for job in (later, undated, soon, held, closed, cancelled):
+        add_task(job, "Screen print", assigned_to=rommel, placement="front")
+    add_task(soon, "Embroidery", assigned_to=rommel)  # two of mine: still one card
+    add_task(soon, "Heat press", assigned_to=isaac)
+    add_task(theirs, "Embroidery", assigned_to=isaac)
+
+    mine = board.assigned_to(rommel, Flagger(on=TODAY))
+    assert [c.job.title for c in mine] == ["soon", "held", "later", "undated"]
+    assert mine[0].mine == ["Screen print · front", "Embroidery"]
+
+
+def test_assigned_to_me_ignores_the_board_filters(client, customer, make_user):
+    rommel = make_user("production", "Rommel")
+    add_task(make(customer, Status.QUOTING, "Rommel's kit"), "Screen print", assigned_to=rommel)
+    client.force_login(rommel)
+    page = client.get(reverse("jobs:list") + "?customer=nobody-matches").content.decode()
+    mine = page.split('aria-label="Assigned to me"')[1].split("</aside>")[0]
+    assert "Rommel&#x27;s kit" in mine and "Quoting" in mine and "You: Screen print" in mine
+
+
+def test_assigned_to_me_is_in_the_refresh_and_empty_says_so(client, manager, customer):
+    client.force_login(manager)
+    fragment = client.get(reverse("jobs:list") + "?partial=1").content.decode()
+    assert "Assigned to me" in fragment and "Nothing assigned to you." in fragment

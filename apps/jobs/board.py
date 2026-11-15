@@ -55,6 +55,7 @@ class Card:
     flag: str | None
     methods: list[str] = field(default_factory=list)
     assignees: list[str] = field(default_factory=list)
+    mine: list[str] = field(default_factory=list)  # the viewer's own tasks on this job
 
 
 def card(job: Job, flagger: Flagger) -> Card:
@@ -64,6 +65,32 @@ def card(job: Job, flagger: Flagger) -> Card:
         dict.fromkeys(t.assigned_to.get_short_name() for t in tasks if t.assigned_to_id)
     )
     return Card(job=job, flag=flagger(job), methods=methods, assignees=assignees)
+
+
+# --- Assigned to me ----------------------------------------------------------------
+
+
+def assigned_to(user, flagger: Flagger | None = None) -> list[Card]:
+    """Every open job with a task assigned to `user`, whatever its stage, soonest due first
+    (no due date last). The board's filters don't apply: it's always all of their work."""
+    flagger = flagger or Flagger()
+    jobs = (
+        base_queryset()
+        .filter(tasks__assigned_to=user)
+        .exclude(status__in=[Status.CLOSED, Status.CANCELLED])
+        .order_by(F("due_date").asc(nulls_last=True), "priority", "status_changed_at", "id")
+        .distinct()
+    )
+    cards = []
+    for job in jobs:
+        c = card(job, flagger)
+        c.mine = [
+            t.decoration_method.name + (f" · {t.placement}" if t.placement else "")
+            for t in job.task_list
+            if t.assigned_to_id == user.pk
+        ]
+        cards.append(c)
+    return cards
 
 
 # --- Filters ----------------------------------------------------------------------
