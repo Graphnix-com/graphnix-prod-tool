@@ -1,6 +1,7 @@
 from django import forms
 
 from apps.jobs.models import Status
+from apps.jobs.money import no_amounts
 
 from .models import Inquiry
 
@@ -37,7 +38,7 @@ class ConvertForm(forms.Form):
         (Status.INVOICED, "Straight to invoice"),
     ]
     start = forms.ChoiceField(choices=START_CHOICES, widget=forms.RadioSelect)
-    title = forms.CharField(max_length=200)
+    title = forms.CharField(max_length=200, validators=[no_amounts])
     square_number = forms.CharField(
         max_length=40,
         required=False,

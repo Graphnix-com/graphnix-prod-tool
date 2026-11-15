@@ -6,6 +6,7 @@ from apps.production.models import DecorationMethod, ProductionTask
 
 from .editing import DETAIL_FIELDS
 from .models import ONE_SIZE, STANDARD_SIZES, Job, JobItem
+from .money import no_amounts
 
 
 class DateInput(forms.DateInput):
@@ -19,7 +20,24 @@ class DateTimeInput(forms.DateTimeInput):
         super().__init__(format="%Y-%m-%dT%H:%M", **kwargs)
 
 
-class JobDetailsForm(forms.ModelForm):
+class ProductionReadsMixin:
+    """These fields are shown to Production, so they may not hold prices (NFR-02)."""
+
+    production_reads: tuple[str, ...] = ()
+
+    def clean(self):
+        data = super().clean()
+        for name in self.production_reads:
+            try:
+                no_amounts(data.get(name))
+            except forms.ValidationError as exc:
+                self.add_error(name, exc)
+        return data
+
+
+class JobDetailsForm(ProductionReadsMixin, forms.ModelForm):
+    production_reads = ("title",)
+
     class Meta:
         model = Job
         fields = DETAIL_FIELDS
@@ -41,8 +59,10 @@ class JobDetailsForm(forms.ModelForm):
 _OTHER_SIZE = re.compile(r"^\s*([A-Za-z0-9]{1,10})\s*[=:x×]\s*(\d+)\s*$")
 
 
-class ItemForm(forms.ModelForm):
+class ItemForm(ProductionReadsMixin, forms.ModelForm):
     """One line. Garments take a quantity per size; anything else takes one quantity."""
+
+    production_reads = ("item_no", "description", "color", "notes")
 
     quantity = forms.IntegerField(min_value=1, required=False, help_text="For items without sizes.")
     other_sizes = forms.CharField(
@@ -100,7 +120,8 @@ class ItemForm(forms.ModelForm):
         return data
 
 
-class TaskForm(forms.ModelForm):
+class TaskForm(ProductionReadsMixin, forms.ModelForm):
+    production_reads = ("placement", "notes")
     new_method = forms.CharField(
         required=False,
         label="Or add a new method",
@@ -136,4 +157,6 @@ class TaskForm(forms.ModelForm):
 
 
 class NoteForm(forms.Form):
-    body = forms.CharField(label="Add a note", widget=forms.Textarea(attrs={"rows": 3}))
+    body = forms.CharField(
+        label="Add a note", widget=forms.Textarea(attrs={"rows": 3}), validators=[no_amounts]
+    )

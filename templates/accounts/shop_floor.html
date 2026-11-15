@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Shop floor · Graphnix tracker{% endblock %}
+{% block content %}
+<h1>Who's working?</h1>
+<p class="sub">Tap your name, then enter your PIN.</p>
+<div class="names">
+  {% for person in people %}
+    <a class="name{% if person.pin_locked %} locked{% endif %}" href="{% url 'shop_floor_pin' person.pk %}">
+      {{ person.full_name }}{% if person.pin_locked %}<small>PIN locked</small>{% endif %}
+    </a>
+  {% empty %}
+    <p class="muted">Nobody has a PIN yet. An Admin sets PINs in Admin › Users.</p>
+  {% endfor %}
+</div>
+<p class="help" style="margin-top:32px"><a href="{% url 'login' %}?office=1">Office staff sign-in</a></p>
+{% endblock %}

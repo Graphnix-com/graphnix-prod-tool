@@ -1,14 +1,22 @@
 {% extends "base.html" %}
 {% block title %}Sign in · Graphnix tracker{% endblock %}
 {% block content %}
-<div class="card" style="max-width:420px;margin:40px auto">
+<div class="card signin">
   <h1>Sign in</h1>
-  <p class="sub">Microsoft 365 sign-in arrives in week 4.</p>
-  <form method="post">
-    {% csrf_token %}
-    {% include "partials/form_fields.html" %}
-    <input type="hidden" name="next" value="{{ next }}">
-    <p><button type="submit" class="primary">Sign in</button></p>
-  </form>
+  {% if microsoft_enabled %}
+    <p class="sub">Office staff: use your Graphnix Microsoft 365 account.</p>
+    <p><a class="button primary wide" href="{% url 'microsoft_start' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Sign in with Microsoft 365</a></p>
+  {% endif %}
+  {% if show_password %}
+    {% if microsoft_enabled %}<h2>Sign in with a password</h2>{% endif %}
+    <form method="post">
+      {% csrf_token %}
+      {% include "partials/form_fields.html" %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <p><button type="submit" class="{% if microsoft_enabled %}{% else %}primary{% endif %}">Sign in</button></p>
+    </form>
+  {% else %}
+    <p class="help"><a href="?password=1{% if next %}&amp;next={{ next|urlencode }}{% endif %}">Sign in with a password instead</a> (the fallback admin account, or Avery away from the shop floor).</p>
+  {% endif %}
 </div>
 {% endblock %}

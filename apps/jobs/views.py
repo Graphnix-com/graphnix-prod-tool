@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 from apps.production.models import DecorationMethod, ProductionTask
 from apps.sales.models import Inquiry
 
-from . import board, editing, services, timeline
+from . import board, editing, money, services, timeline
 from .editing import Locked
 from .flags import Flagger
 from .forms import ItemForm, JobDetailsForm, NoteForm, TaskForm
@@ -134,6 +134,8 @@ def job_action(request, pk):
     note = request.POST.get("note", "")
     user = request.user
     try:
+        if money.has_amount(note):
+            raise InvalidMove(money.MESSAGE)
         if action == "move":
             services.move(job, request.POST.get("to_status", ""), user=user, note=note)
         elif action == "skip_mockup":
@@ -255,5 +257,5 @@ def note_add(request, pk):
         editing.add_note(job, user=request.user, body=form.cleaned_data["body"])
         messages.success(request, "Note added.")
     else:
-        messages.error(request, "The note is empty.")
+        messages.error(request, " ".join(form.errors.get("body", ["The note is empty."])))
     return redirect(_job_url(job, "timeline"))

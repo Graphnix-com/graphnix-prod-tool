@@ -44,6 +44,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.accounts.middleware.ShopFloorSessionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -62,6 +63,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "apps.core.context_processors.app_info",
+                "apps.accounts.context_processors.sign_in",
             ],
         },
     },
@@ -127,6 +129,8 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=0)
 SESSION_COOKIE_AGE = 60 * 60 * 12  # one shift; shared shop PCs (NFR-04)
+# Shop-floor PC: back to the name list after 10 minutes without a click or key (NFR-04).
+SHOP_FLOOR_IDLE_SECONDS = env.int("SHOP_FLOOR_IDLE_SECONDS", default=600)
 X_FRAME_OPTIONS = "DENY"
 
 # --- Email: crash reports and notifications go out through Microsoft Graph --
@@ -135,6 +139,13 @@ M365_CLIENT_ID = env("M365_CLIENT_ID", default="")
 M365_CLIENT_SECRET = env("M365_CLIENT_SECRET", default="")
 M365_SENDER = env("M365_SENDER", default="info@graphnix.com")
 M365_CONFIGURED = bool(M365_TENANT_ID and M365_CLIENT_ID and M365_CLIENT_SECRET)
+
+# --- Microsoft 365 sign-in (INT-07): same app registration, delegated openid/profile/email.
+# The object IDs of the three Entra security groups that give a tracker role. Not secret.
+M365_GROUP_ADMIN = env("M365_GROUP_ADMIN", default="")
+M365_GROUP_MANAGER = env("M365_GROUP_MANAGER", default="")
+M365_GROUP_PRODUCTION = env("M365_GROUP_PRODUCTION", default="")
+M365_SIGN_IN_ENABLED = M365_CONFIGURED and bool(M365_GROUP_ADMIN or M365_GROUP_MANAGER)
 
 EMAIL_BACKEND = (
     "apps.m365.email_backend.GraphEmailBackend"

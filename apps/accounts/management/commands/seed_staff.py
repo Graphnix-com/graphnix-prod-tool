@@ -2,9 +2,10 @@
 
     python manage.py seed_staff
 
-Accounts are created without email or password. Before Microsoft 365 sign-in goes live
-(Step 1, week 4), add Jenn's, Nick's and McKenna's work emails in the admin. Production staff
-keep no email: they sign in with name and PIN on the shop-floor PC.
+Accounts are created without email or password. Before Microsoft 365 sign-in goes live, add
+Jenn's, Nick's and McKenna's work emails in the admin, so their first Microsoft sign-in links
+to these accounts. Production staff keep no email: an Admin sets their PINs in the admin and
+they sign in with name and PIN on the shop-floor PC (docs/sign-in-setup.md).
 """
 
 from django.contrib.auth import get_user_model
