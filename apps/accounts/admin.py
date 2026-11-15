@@ -17,7 +17,10 @@ def _pin_field():
         min_length=PIN_LENGTH,
         max_length=PIN_LENGTH,
         widget=forms.PasswordInput(attrs={"inputmode": "numeric", "autocomplete": "new-password"}),
-        help_text=f"{PIN_LENGTH} digits, for the shop-floor PC. Setting one also unlocks it.",
+        help_text=(
+            f"{PIN_LENGTH} digits, for the shop-floor PC. Setting one also unlocks it. "
+            "They choose their own PIN the first time they use it."
+        ),
     )
 
 
@@ -60,7 +63,7 @@ class StaffCreationForm(AdminUserCreationForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         if self.cleaned_data.get("new_pin"):
-            user.set_pin(self.cleaned_data["new_pin"])
+            user.set_pin(self.cleaned_data["new_pin"], temporary=True)
         if commit:
             user.save()
             self.save_m2m()
@@ -133,15 +136,16 @@ class UserAdmin(BaseUserAdmin):
         if obj.pin_locked:
             when = timezone.localtime(obj.pin_locked_at).strftime("%b %-d, %-I:%M %p")
             return f"Locked since {when}"
+        status = "Temporary (they'll choose their own)" if obj.pin_change_required else "Set"
         if obj.pin_failed_attempts:
-            return f"Set ({obj.pin_failed_attempts} wrong tries)"
-        return "Set"
+            return f"{status} ({obj.pin_failed_attempts} wrong tries)"
+        return status
 
     def save_model(self, request, obj, form, change):
         ip = request.META.get("REMOTE_ADDR")
         pin_change = None
         if change and form.cleaned_data.get("new_pin"):
-            obj.set_pin(form.cleaned_data["new_pin"])
+            obj.set_pin(form.cleaned_data["new_pin"], temporary=True)
             pin_change = "pin_set"
         elif change and form.cleaned_data.get("remove_pin"):
             obj.clear_pin()

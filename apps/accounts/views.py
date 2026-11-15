@@ -103,12 +103,51 @@ def shop_floor_pin(request, pk):
     if request.method == "POST":
         result = shopfloor.try_pin(request, device, person.pk, request.POST.get("pin", "").strip())
         if result.ok:
-            return redirect("home")
+            return redirect("shop_floor_change_pin" if result.must_change else "home")
         error = result.message
         person.refresh_from_db()
     status = 200 if not error else 400
     return render(
         request, "accounts/shop_floor_pin.html", {"person": person, "error": error}, status=status
+    )
+
+
+class NewPinForm(forms.Form):
+    pin = forms.CharField(label="New PIN", max_length=4)
+    confirm = forms.CharField(label="Type it again", max_length=4)
+
+    def __init__(self, *args, user, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+
+    def clean(self):
+        data = super().clean()
+        pin, confirm = data.get("pin", ""), data.get("confirm", "")
+        problem = self.user.new_pin_problem(pin)
+        if problem:
+            raise forms.ValidationError(problem)
+        if pin != confirm:
+            raise forms.ValidationError("The two PINs don't match. Try again.")
+        return data
+
+
+@login_required
+def shop_floor_change_pin(request):
+    """First sign-in with a PIN an Admin set: the person chooses their own."""
+    if shopfloor.device_for(request) is None or not shopfloor.is_shop_floor_session(request):
+        return _not_this_pc(request)
+    if not request.user.pin_change_required:
+        return redirect("home")
+    form = NewPinForm(request.POST or None, user=request.user)
+    if request.method == "POST" and form.is_valid():
+        shopfloor.change_pin(request, form.cleaned_data["pin"])
+        messages.success(request, "Your new PIN is set. Use it next time.")
+        return redirect("home")
+    return render(
+        request,
+        "accounts/shop_floor_change_pin.html",
+        {"form": form},
+        status=400 if form.errors else 200,
     )
 
 

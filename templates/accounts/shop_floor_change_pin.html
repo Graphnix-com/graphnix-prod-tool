@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Choose your PIN · Graphnix tracker{% endblock %}
+{% block content %}
+<div class="card pinpad">
+  <h1>Choose your own PIN</h1>
+  <p class="sub">{{ user.get_short_name }}, you signed in with a PIN you were given. Pick 4 digits only you know.</p>
+  {% for error in form.non_field_errors %}<p class="fail" role="alert">{{ error }}</p>{% endfor %}
+  <form method="post" id="pin-form">
+    {% csrf_token %}
+    <label for="pin">New PIN</label>
+    <input type="password" name="pin" id="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4"
+           autocomplete="new-password" autofocus required>
+    <label for="confirm">Type it again</label>
+    <input type="password" name="confirm" id="confirm" inputmode="numeric" pattern="[0-9]{4}" maxlength="4"
+           autocomplete="new-password" required>
+    <div class="keys">
+      {% for k in "123456789" %}<button type="button" data-key="{{ k }}">{{ k }}</button>{% endfor %}
+      <button type="button" data-key="clear">Clear</button><button type="button" data-key="0">0</button>
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+  <p class="help">Too easy to guess (like 1234 or 0000) won't be accepted.</p>
+</div>
+<script>
+  (function () {
+    var pin = document.getElementById("pin"), confirm = document.getElementById("confirm");
+    var active = pin;
+    [pin, confirm].forEach(function (f) { f.addEventListener("focus", function () { active = f; }); });
+    document.querySelectorAll(".keys [data-key]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var k = b.getAttribute("data-key");
+        if (k === "clear") { active.value = ""; }
+        else if (active.value.length < 4) { active.value += k; }
+        if (active === pin && pin.value.length === 4) { active = confirm; }
+        active.focus();
+      });
+    });
+  })();
+</script>
+{% endblock %}
