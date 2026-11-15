@@ -61,6 +61,7 @@ def job_list(request):
     flagger = Flagger()
     context = {
         "lanes": board.board(filters, show_side=show_side, flagger=flagger),
+        "mine": board.assigned_to(request.user, flagger),
         "filters": filters,
         "show_side": show_side,
         "today": flagger.on,
