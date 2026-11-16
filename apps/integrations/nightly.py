@@ -1,4 +1,5 @@
-"""The nightly check against Square (INT-01), and the go-live customer import (FR-08).
+"""The nightly check against Square (INT-01), the go-live customer import (FR-08), and a
+hand-picked invoice import for trying real invoices on staging.
 
 Webhooks can be missed: Square gives up after its retry window, or the server was down.
 Each night the worker:
@@ -162,3 +163,71 @@ def import_customers(*, years: int = 2, dry_run: bool = False) -> dict:
             )
             record(None, customer, "create", {"source": [None, "Square import"]})
     return counts
+
+
+def check_location() -> None:
+    """Raise SquareAccessError if the token can't read SQUARE_LOCATION_ID."""
+    location = settings.SQUARE_LOCATION_ID
+    locations = square.list_locations()
+    if location and location not in locations:
+        raise square.SquareAccessError(
+            f"The access token can't read location {location}. It belongs to a Square "
+            f"account with location(s) {', '.join(locations) or 'none'}. Check "
+            "SQUARE_ACCESS_TOKEN and SQUARE_LOCATION_ID are from the same account."
+        )
+
+
+def pick_invoices(*, ids=(), numbers=(), latest: int = 0) -> list[dict]:
+    """Square invoices by ID, by invoice number, or the `latest` most recently created."""
+    found = {}
+    for invoice_id in ids:
+        data = square.get_invoice(invoice_id)
+        if data is None:
+            raise square.SquareError(f"Square has no invoice {invoice_id}.")
+        found[data["id"]] = data
+    if numbers or latest:
+        wanted = {str(n).strip() for n in numbers}
+        listed = []
+        location = settings.SQUARE_LOCATION_ID
+        for loc in [location] if location else square.list_locations():
+            listed.extend(square.list_invoices(loc, max_pages=200))
+        for data in listed:
+            if data.get("invoice_number") in wanted:
+                found[data["id"]] = data
+        missing = wanted - {d.get("invoice_number") for d in found.values()}
+        if missing:
+            raise square.SquareError(
+                f"Square has no invoice numbered {', '.join(sorted(missing))}."
+            )
+        listed.sort(key=lambda d: d.get("created_at") or "", reverse=True)
+        for data in listed[:latest]:
+            found[data["id"]] = data
+    return list(found.values())
+
+
+def import_invoices(invoices: list[dict], *, dry_run: bool = False) -> list[dict]:
+    """Store each invoice as a webhook would. One with a job's G- number links itself; the
+    rest wait under Invoices. Square is never written."""
+    rows = []
+    for data in invoices:
+        fields = square.read_invoice(data)
+        row = {
+            "number": fields["invoice_number"] or data["id"],
+            "title": fields["title"],
+            "status": fields["status"],
+            "total": square.money(fields["total_cents"], fields["currency"]),
+        }
+        if dry_run:
+            row["result"] = "would import"
+        elif square.other_location(data):
+            row["result"] = "skipped: another location"
+        else:
+            _refresh(data)
+            stored = SquareInvoice.objects.get(square_id=data["id"])
+            row["result"] = (
+                f"linked to {stored.job.display_number}"
+                if stored.job_id
+                else "waiting under Invoices"
+            )
+        rows.append(row)
+    return rows
