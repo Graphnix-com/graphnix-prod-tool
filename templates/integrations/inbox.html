@@ -3,7 +3,7 @@
 {% block title %}Invoices · GRAPHNIX tracker{% endblock %}
 {% block content %}
 <h1>Invoices</h1>
-<p class="sub">Square invoices to link: these matched no job. An invoice links itself when its title has the job's G- number; link these by hand, or set aside a sale with no production.</p>
+<p class="sub">Square invoices to link: these matched no job. An invoice links itself when its title has the job's G- number; link these to a job, create a job from one, or set aside a sale with no production.</p>
 <table>
   <tr><th>Invoice</th><th>Title</th><th>Customer</th><th>Total</th><th>Status</th><th>Updated</th><th>Link To Job</th><th></th></tr>
   {% for inv in invoices %}
@@ -21,7 +21,8 @@
           <button type="submit">Link</button>
         </form>
       </td>
-      <td>
+      <td style="white-space:nowrap">
+        {% if perms.jobs.add_job %}<a class="button" href="{% url 'integrations:invoice_new_job' inv.pk %}">Create job</a>{% endif %}
         <form method="post" action="{% url 'integrations:invoice_set_aside' inv.pk %}" class="inline">
           {% csrf_token %}<button type="submit">Not a job</button>
         </form>

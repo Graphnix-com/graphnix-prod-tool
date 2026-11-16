@@ -93,6 +93,41 @@ def invoice_link(request, pk):
 
 
 @login_required
+def invoice_new_job(request, pk):
+    """Create a job from an invoice that matched none: confirm the title and customer."""
+    invoice = get_object_or_404(SquareInvoice, pk=pk)
+    if not (request.user.has_perm(linking.PERMISSION) and request.user.has_perm("jobs.add_job")):
+        raise PermissionDenied
+    linked = linking.customer_for(invoice)
+    candidates = [] if linked else list(linking.same_name(invoice))
+    if request.method == "POST":
+        picked = None
+        choice = request.POST.get("customer", "new")
+        if not linked and choice != "new":
+            picked = next((c for c in candidates if str(c.pk) == choice), None)
+            if picked is None:
+                messages.error(request, "Pick one of the customers listed, or a new one.")
+                return redirect("integrations:invoice_new_job", pk=invoice.pk)
+        try:
+            job = linking.create_job_from(
+                invoice, user=request.user, title=request.POST.get("title", ""), customer=picked
+            )
+        except PermissionDenied as exc:
+            messages.error(request, str(exc))
+            return redirect("integrations:inbox")
+        messages.success(
+            request,
+            f"Job {job.display_number} created from invoice {invoice.invoice_number}.",
+        )
+        return redirect("jobs:detail", pk=job.pk)
+    return render(
+        request,
+        "integrations/new_job.html",
+        {"invoice": invoice, "linked": linked, "candidates": candidates},
+    )
+
+
+@login_required
 @require_POST
 def invoice_unlink(request, pk):
     invoice = get_object_or_404(SquareInvoice, pk=pk)
