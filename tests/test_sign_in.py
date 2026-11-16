@@ -98,7 +98,7 @@ def test_a_switched_off_account_is_refused():
 
 
 def test_another_organisation_is_refused():
-    with pytest.raises(entra.SignInRefused, match="Graphnix organisation"):
+    with pytest.raises(entra.SignInRefused, match="GRAPHNIX organisation"):
         entra.user_for_claims(claims([ADMIN_GROUP], tid="99999999-0000-0000-0000-000000000000"))
     assert not User.objects.exists()
 

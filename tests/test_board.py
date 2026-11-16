@@ -282,10 +282,10 @@ def test_assigned_to_me_ignores_the_board_filters(client, customer, make_user):
     client.force_login(rommel)
     page = client.get(reverse("jobs:list") + "?customer=nobody-matches").content.decode()
     mine = page.split('aria-label="Assigned to me"')[1].split("</aside>")[0]
-    assert "Rommel&#x27;s kit" in mine and "Quoting" in mine and "You: Screen print" in mine
+    assert "Rommel&#x27;s kit" in mine and "Quoting" in mine and "Assigned: Screen print" in mine
 
 
 def test_assigned_to_me_is_in_the_refresh_and_empty_says_so(client, manager, customer):
     client.force_login(manager)
     fragment = client.get(reverse("jobs:list") + "?partial=1").content.decode()
-    assert "Assigned to me" in fragment and "Nothing assigned to you." in fragment
+    assert "Assigned to me" in fragment and "Nothing assigned." in fragment

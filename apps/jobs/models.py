@@ -54,7 +54,7 @@ class Priority(models.IntegerChoices):
 
 
 class WaitingOn(models.TextChoices):
-    GRAPHNIX = "graphnix", "Waiting on Graphnix"
+    GRAPHNIX = "graphnix", "Waiting on GRAPHNIX"
     CUSTOMER = "customer", "Waiting on customer"
 
 

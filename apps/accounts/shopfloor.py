@@ -22,7 +22,7 @@ from apps.audit.services import record
 
 from .models import PIN_LENGTH, PIN_MAX_TRIES, ShopFloorDevice
 
-LOCKED = f"Your PIN is locked after {PIN_MAX_TRIES} wrong tries. Ask Jenn or Nick to reset it."
+LOCKED = f"This PIN is locked after {PIN_MAX_TRIES} wrong tries. An admin can reset it."
 
 COOKIE = "gx_shop_floor"
 COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 5  # until an Admin switches the PC off in the admin
@@ -87,7 +87,7 @@ def try_pin(request, device: ShopFloorDevice, user_id: int, pin: str) -> PinResu
     User = get_user_model()
     user = User.objects.select_for_update().filter(pk=user_id).first()
     if user is None or not user.is_active or not user.has_pin:
-        return PinResult(False, "That name can't sign in here. Ask Jenn or Nick.")
+        return PinResult(False, "That name can't sign in here. Contact an admin.")
     if user.pin_locked:
         return PinResult(False, LOCKED)
     if not (len(pin) == PIN_LENGTH and pin.isdigit()):

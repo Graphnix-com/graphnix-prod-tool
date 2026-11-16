@@ -1,0 +1,44 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrahead %}{{ block.super }}<link rel="icon" type="image/png" href="{% static 'core/logo.png' %}">{% endblock %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  /* Brand colours: dark #343e61, light #dc7423. Header, buttons and breadcrumbs carry
+     their own text colour, so they work in the light and dark admin themes. */
+  :root, html[data-theme] {
+    --header-bg: #fff; --header-color: #343e61; --header-branding-color: #343e61;
+    --header-link-color: #343e61;
+    --breadcrumbs-bg: #343e61; --breadcrumbs-fg: #c9cde0; --breadcrumbs-link-fg: #fff;
+    --primary: #343e61; --secondary: #343e61; --accent: #dc7423; --primary-fg: #fff;
+    --button-bg: #343e61; --button-hover-bg: #262e4a; --button-fg: #fff;
+    --default-button-bg: #262e4a; --default-button-hover-bg: #161b2d;
+  }
+  html[data-theme="light"] { --link-fg: #343e61; --link-hover-color: #262e4a; --link-selected-fg: #262e4a; }
+  @media (prefers-color-scheme: light) {
+    html:not([data-theme="dark"]) { --link-fg: #343e61; --link-hover-color: #262e4a; --link-selected-fg: #262e4a; }
+  }
+  #header { border-bottom: 3px solid #dc7423; }
+  #branding { display: flex; align-items: center; gap: 14px; }
+  #branding .brand img { display: block; height: 36px; width: auto; }
+  #site-name { margin: 0; }
+  #site-name a:link, #site-name a:visited { color: #343e61; font-weight: 600; }
+  #branding a.back-to-app { font-size: 0.875rem; padding: 5px 12px; border-radius: 6px;
+    border: 1px solid #343e61; color: #343e61; text-decoration: none; }
+  #branding a.back-to-app:hover { background: #343e61; color: #fff; }
+</style>
+{% endblock %}
+
+{% block branding %}
+<a href="{% url 'home' %}" class="brand"><img src="{% static 'core/logo.png' %}" alt="GRAPHNIX home" width="38" height="36"></a>
+<div id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></div>
+<a href="{% url 'home' %}" class="back-to-app">← Back to the app</a>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}

@@ -141,7 +141,7 @@ def shop_floor_change_pin(request):
     form = NewPinForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
         shopfloor.change_pin(request, form.cleaned_data["pin"])
-        messages.success(request, "Your new PIN is set. Use it next time.")
+        messages.success(request, "New PIN saved.")
         return redirect("home")
     return render(
         request,

@@ -100,8 +100,8 @@ def roles_from_claims(claims: dict) -> list[str]:
     if "groups" not in claims and "groups" in (claims.get("_claim_names") or {}):
         # "Group overage": over 200 groups, Entra sends a link instead of the list.
         raise SignInRefused(
-            "Your Microsoft 365 account is in too many groups for the tracker to read. "
-            "Ask Josh to check the sign-in setup."
+            "This Microsoft 365 account is in too many groups for the tracker to read. "
+            "An admin needs to check the sign-in setup."
         )
     member_of = {str(g).lower() for g in claims.get("groups") or []}
     mapping = _role_for_group()
@@ -120,7 +120,7 @@ def user_for_claims(claims: dict, ip=None):
     """The tracker account for these ID-token claims, created or brought up to date.
     Raises SignInRefused if this person may not use the tracker."""
     if str(claims.get("tid", "")).lower() != settings.M365_TENANT_ID.strip().lower():
-        raise SignInRefused("That Microsoft account isn't in the Graphnix organisation.")
+        raise SignInRefused("That Microsoft account isn't in the GRAPHNIX organisation.")
     object_id = claims.get("oid")
     if not object_id:
         raise SignInRefused("Microsoft didn't say who you are. Please try again.")
@@ -140,11 +140,11 @@ def user_for_claims(claims: dict, ip=None):
                 record(None, user, "sign_in_refused", {"reason": [None, "no tracker group"]}, ip=ip)
         log.warning("Microsoft sign-in refused, no tracker group: %s", email or object_id)
         raise SignInRefused(
-            "Your Microsoft 365 account isn't set up for the tracker. Ask Jenn or Nick."
+            "This Microsoft 365 account isn't set up for the tracker. Contact an admin."
         )
     if user is not None and not user.is_active:
         record(None, user, "sign_in_refused", {"reason": [None, "account switched off"]}, ip=ip)
-        raise SignInRefused("Your tracker account is switched off. Ask Jenn or Nick.")
+        raise SignInRefused("This tracker account is switched off. Contact an admin.")
     return _update_account(user, object_id, email, claims, granted, ip)
 
 

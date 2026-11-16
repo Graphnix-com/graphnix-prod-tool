@@ -183,7 +183,7 @@
       <dt>NAS folder</dt><dd>{% if job.shared_drive_path %}<span class="copy" id="nas-path">{{ job.shared_drive_path }}</span> <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('nas-path').textContent)">Copy</button>{% else %}—{% endif %}</dd>
       <dt>Source</dt><dd>{{ job.get_source_display|default:"—" }}{% if job.inquiry and perms.sales.view_inquiry %} · <a href="{% url 'sales:detail' job.inquiry.pk %}">inquiry</a>{% endif %}</dd>
       {% if can_see_money %}
-        <dt>Payment</dt><dd>{{ job.get_payment_status_display }} <span class="muted">(from Square, Step 2)</span></dd>
+        <dt>Payment</dt><dd>{{ job.get_payment_status_display }} <span class="muted">(from Square)</span></dd>
       {% endif %}
       <dt>Automatic emails</dt><dd>{% if job.notifications_opt_out %}Off for this job{% else %}On{% endif %}</dd>
     </dl>
