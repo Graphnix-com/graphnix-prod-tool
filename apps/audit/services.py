@@ -28,11 +28,16 @@ def record(
         actor = None
     if job is None and entity._meta.label_lower == "jobs.job":
         job = entity
+    entity_id = entity.pk
+    if not isinstance(entity_id, int):
+        # Rows keyed by name (app settings): the key goes with the changes instead.
+        changes = {"key": [None, str(entity_id)], **(changes or {})}
+        entity_id = 0
     return AuditLog.objects.create(
         job_id=job.pk if job is not None else None,
         actor=actor,
         entity_type=entity._meta.label_lower,
-        entity_id=entity.pk,
+        entity_id=entity_id,
         action=action,
         changes={k: [_plain(v) for v in pair] for k, pair in changes.items()} if changes else None,
         ip=ip,

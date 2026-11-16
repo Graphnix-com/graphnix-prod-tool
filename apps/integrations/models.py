@@ -36,6 +36,7 @@ class SquareInvoice(models.Model):
     class Match(models.TextChoices):
         TITLE = "title", "Job number in the invoice"
         MANUAL = "manual", "Linked by hand"
+        UNLINKED = "unlinked", "Unlinked by hand"
 
     square_id = models.CharField(max_length=100, unique=True)
     version = models.IntegerField(default=0)
@@ -83,6 +84,11 @@ class SquareInvoice(models.Model):
 
     def __str__(self) -> str:
         return f"Invoice {self.invoice_number or self.square_id}"
+
+    @property
+    def status_label(self) -> str:
+        """Square's PARTIALLY_PAID as "Partially paid"."""
+        return self.status.replace("_", " ").capitalize()
 
     @property
     def sent(self) -> bool:

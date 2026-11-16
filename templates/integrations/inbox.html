@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Invoices to link · GRAPHNIX tracker{% endblock %}
+{% block content %}
+<h1>Invoices to link</h1>
+<p class="sub">Square invoices that matched no job. An invoice links itself when its title has the job's G- number; link these by hand, or set aside a sale with no production.</p>
+<table>
+  <tr><th>Invoice</th><th>Title</th><th>Customer</th><th>Total</th><th>Status</th><th>Updated</th><th>Link to job</th><th></th></tr>
+  {% for inv in invoices %}
+    <tr>
+      <td>{{ inv.invoice_number|default:"—" }}{% if inv.public_url %} <a href="{{ inv.public_url }}" target="_blank" rel="noopener">Open</a>{% endif %}</td>
+      <td>{{ inv.title|default:"—" }}</td>
+      <td>{{ inv.recipient_name|default:"—" }}</td>
+      <td>{{ inv.total_cents|money:inv.currency }}</td>
+      <td>{{ inv.status_label }}</td>
+      <td>{{ inv.square_updated_at|date:"j M Y"|default:"—" }}</td>
+      <td>
+        <form method="post" action="{% url 'integrations:invoice_link' inv.pk %}" class="inline">
+          {% csrf_token %}
+          <input type="text" name="job_number" placeholder="Job no." aria-label="Job number for invoice {{ inv.invoice_number }}" required style="width:110px">
+          <button type="submit">Link</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="{% url 'integrations:invoice_set_aside' inv.pk %}" class="inline">
+          {% csrf_token %}<button type="submit">Not a job</button>
+        </form>
+      </td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="8" class="muted">Nothing to link.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

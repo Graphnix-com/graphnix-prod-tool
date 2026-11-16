@@ -214,6 +214,27 @@ def home(flagger: Flagger | None = None) -> list[Panel]:
     return panels
 
 
+def money_summary() -> dict:
+    """For the Home page (FR-05): what open jobs still owe, and jobs paid but not started."""
+    open_jobs = Job.objects.exclude(status__in=[Status.CLOSED, Status.CANCELLED])
+    owing = [
+        j.balance_cents
+        for j in open_jobs.filter(amount_total_cents__isnull=False).exclude(
+            payment_status__in=[PaymentStatus.CANCELLED, PaymentStatus.REFUNDED]
+        )
+        if j.balance_cents and j.balance_cents > 0
+    ]
+    not_started = open_jobs.filter(
+        payment_status=PaymentStatus.PAID,
+        status__in=[Status.QUOTING, Status.QUOTE_SENT, Status.QUOTE_APPROVED, Status.INVOICED],
+    )
+    return {
+        "owing_cents": sum(owing),
+        "owing_jobs": len(owing),
+        "paid_not_started": not_started.count(),
+    }
+
+
 # --- Search -----------------------------------------------------------------------
 
 

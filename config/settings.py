@@ -65,6 +65,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "apps.core.context_processors.app_info",
                 "apps.accounts.context_processors.sign_in",
+                "apps.integrations.context_processors.square_inbox",
             ],
         },
     },

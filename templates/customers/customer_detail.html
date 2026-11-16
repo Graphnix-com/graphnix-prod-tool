@@ -17,6 +17,7 @@
         <dt>Phone</dt><dd>{{ customer.phone|default:"—" }}</dd>
       {% endif %}
       <dt>Notes</dt><dd>{{ customer.notes|linebreaksbr|default:"—" }}</dd>
+      <dt>Square</dt><dd>{% if customer.square_customer_id %}Linked to a Square customer{% else %}<span class="muted">Not linked yet: links itself from an invoice, or a matching email in Square</span>{% endif %}</dd>
     </dl>
     {% if can_see_contacts %}
       {% for contact in customer.contacts.all %}

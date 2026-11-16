@@ -18,7 +18,23 @@
     {% if job.status == "cancelled" and job.cancel_reason %}<span class="muted">· {{ job.cancel_reason }}</span>{% endif %}
   </p>
   <div class="actions">
-    {% if actions.forward %}
+    {% if actions.forward and actions.forward.gate %}
+      {% if actions.forward.can_override %}
+        <details class="action"><summary>Move to {{ actions.forward.label }}</summary>
+          <form method="post" action="{% url 'jobs:action' job.pk %}">
+            {% csrf_token %}<input type="hidden" name="action" value="move">
+            <input type="hidden" name="to_status" value="{{ actions.forward.to }}">
+            <input type="hidden" name="tab" value="{{ tab }}">
+            <p class="warn" style="margin:6px 0">{{ actions.forward.gate }}</p>
+            <label>Reason to move it anyway</label><input type="text" name="note" required>
+            <p><button type="submit">Override and move</button></p>
+          </form>
+        </details>
+      {% else %}
+        <button type="button" disabled title="{{ actions.forward.gate }}">Move to {{ actions.forward.label }}</button>
+        <span class="warn">{{ actions.forward.gate }}</span>
+      {% endif %}
+    {% elif actions.forward %}
       <form method="post" action="{% url 'jobs:action' job.pk %}" class="inline">
         {% csrf_token %}<input type="hidden" name="action" value="move">
         <input type="hidden" name="to_status" value="{{ actions.forward.to }}">
@@ -182,12 +198,10 @@
       <dt>Fulfilment</dt><dd>{{ job.get_fulfillment_method_display|default:"—" }}</dd>
       <dt>NAS folder</dt><dd>{% if job.shared_drive_path %}<span class="copy" id="nas-path">{{ job.shared_drive_path }}</span> <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('nas-path').textContent)">Copy</button>{% else %}—{% endif %}</dd>
       <dt>Source</dt><dd>{{ job.get_source_display|default:"—" }}{% if job.inquiry and perms.sales.view_inquiry %} · <a href="{% url 'sales:detail' job.inquiry.pk %}">inquiry</a>{% endif %}</dd>
-      {% if can_see_money %}
-        <dt>Payment</dt><dd>{{ job.get_payment_status_display }} <span class="muted">(from Square)</span></dd>
-      {% endif %}
       <dt>Automatic emails</dt><dd>{% if job.notifications_opt_out %}Off for this job{% else %}On{% endif %}</dd>
     </dl>
     {% if perms.jobs.change_job %}<p style="margin-bottom:0"><a class="button" href="{% url 'jobs:edit' job.pk %}">Edit details</a></p>{% endif %}
   </div>
+  {% if can_see_money %}{% include "jobs/_payment_panel.html" %}{% endif %}
 {% endif %}
 {% endblock %}

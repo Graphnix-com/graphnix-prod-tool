@@ -7,10 +7,13 @@ import re
 import pytest
 from django.urls import URLResolver, get_resolver, reverse
 
+from apps.integrations import square
 from apps.jobs import money
 from apps.jobs.models import Job, JobItem, JobItemSize, PaymentStatus, Status
 from apps.production.models import DecorationMethod, ProductionTask
 from apps.sales.models import Inquiry
+
+from .test_square_webhooks import invoice
 
 pytestmark = pytest.mark.django_db
 
@@ -38,7 +41,10 @@ def every_url_name():
 
 
 @pytest.fixture
-def world(customer, make_user):
+def world(customer, make_user, settings):
+    settings.SQUARE_ENABLED = True  # payment gates on
+    settings.SQUARE_ACCESS_TOKEN = ""
+    settings.SQUARE_LOCATION_ID = ""
     job = Job.objects.create(
         customer=customer,
         title="Acme hoodies",
@@ -56,8 +62,20 @@ def world(customer, make_user):
     inquiry = Inquiry.objects.create(
         customer=customer, channel="email", subject="Hoodies", details="50 hoodies"
     )
+    # Step 2: a linked invoice, paid then partly refunded (timeline entries from Square),
+    # and one waiting in the inbox.
+    linked = invoice(id="inv:a", title=f"{job.job_number} hoodies", total=123456, paid=50000)
+    square.apply({**linked, "status": "PARTIALLY_PAID"}, event_id="e1")
+    square.apply({**linked, "version": 2, "status": "PARTIALLY_REFUNDED"}, refunded=1000)
+    waiting = square.apply(invoice(id="inv:b", number="777", title="Counter sale"))
     return {
-        "pk": {"customers": customer.pk, "sales": inquiry.pk, "jobs": job.pk, None: job.pk},
+        "pk": {
+            "customers": customer.pk,
+            "sales": inquiry.pk,
+            "jobs": job.pk,
+            "integrations": waiting.pk,
+            None: job.pk,
+        },
         "item_pk": item.pk,
         "task_pk": task.pk,
         "job": job,
