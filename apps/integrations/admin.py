@@ -2,7 +2,7 @@
 
 from django.contrib import admin
 
-from .models import SquareInvoice, SquareOrder, WebhookEvent
+from .models import EstimateEmail, SquareEstimate, SquareInvoice, SquareOrder, WebhookEvent
 
 
 class ReadOnly(admin.ModelAdmin):
@@ -44,3 +44,15 @@ class SquareOrderAdmin(ReadOnly):
     list_display = ("number", "buyer_name", "source_name", "state", "total_cents", "job")
     list_filter = ("state", "source_name")
     search_fields = ("square_id", "reference", "buyer_name")
+
+
+@admin.register(SquareEstimate)
+class SquareEstimateAdmin(ReadOnly):
+    list_display = ("number", "customer_name", "total_cents", "sent_at", "accepted_at", "job")
+    search_fields = ("number", "customer_name", "customer_email")
+
+
+@admin.register(EstimateEmail)
+class EstimateEmailAdmin(ReadOnly):
+    list_display = ("received_at", "kind", "estimate", "error")
+    list_filter = ("kind",)

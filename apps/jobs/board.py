@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 
 from django.db.models import F, Prefetch, Q
+from django.utils import timezone
 
 from apps.production.models import ProductionTask
 
@@ -235,6 +236,24 @@ def home(flagger: Flagger | None = None) -> list[Panel]:
     due_soon.sort(key=lambda c: (c.job.due_date, c.job.priority))
     panels.append(_split("Almost Due", due_soon))
     return panels
+
+
+FOLLOW_UP_SETTING = "quote_follow_up_days"
+FOLLOW_UP_DAYS = 7
+
+
+def follow_up_days() -> int:
+    from apps.accounts.models import get_setting
+
+    return int(get_setting(FOLLOW_UP_SETTING, FOLLOW_UP_DAYS))
+
+
+def quote_follow_ups(flagger: Flagger | None = None) -> list[Card]:
+    """Quotes sent at least `follow_up_days` ago with no answer yet: someone should call."""
+    flagger = flagger or Flagger()
+    cutoff = timezone.now() - timedelta(days=follow_up_days())
+    qs = base_queryset().filter(status=Status.QUOTE_SENT, quote_sent_at__lte=cutoff)
+    return [card(j, flagger) for j in qs.order_by("quote_sent_at")]
 
 
 def money_summary() -> dict:

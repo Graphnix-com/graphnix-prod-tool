@@ -338,10 +338,14 @@ def apply(data: dict, *, refunded: int | None = None, event_id: str = "") -> Squ
         setattr(invoice, name, value)
     linked_now = False
     if invoice.job_id is None and invoice.not_a_job_at is None and not invoice.match_method:
-        job = find_job(data)
+        job, how = find_job(data), SquareInvoice.Match.TITLE
+        if job is None:
+            from . import estimates
+
+            job, how = estimates.job_for_invoice(data), SquareInvoice.Match.ESTIMATE
         if job is not None:
             invoice.job = job
-            invoice.match_method = SquareInvoice.Match.TITLE
+            invoice.match_method = how
             invoice.linked_at = timezone.now()
             linked_now = True
     invoice.save()

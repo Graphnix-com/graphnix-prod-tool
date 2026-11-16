@@ -37,6 +37,7 @@ class SquareInvoice(models.Model):
         TITLE = "title", "Job number in the invoice"
         MANUAL = "manual", "Linked by hand"
         UNLINKED = "unlinked", "Unlinked by hand"
+        ESTIMATE = "estimate", "From the accepted estimate"
 
     square_id = models.CharField(max_length=100, unique=True)
     version = models.IntegerField(default=0)
@@ -146,3 +147,78 @@ class SquareOrder(models.Model):
     @property
     def status_label(self) -> str:
         return {"CANCELED": "Cancelled"}.get(self.state, self.state.capitalize())
+
+
+class SquareEstimate(models.Model):
+    """A Square estimate, known only from Square's emails: its API has no estimates.
+
+    "A new estimate was sent to …" puts the job at Quote Sent; "You accepted an estimate!"
+    puts it at Quote Approved. The estimate number becomes the job's Square number."""
+
+    class Match(models.TextChoices):
+        NUMBER = "number", "Estimate number already on the job"
+        CUSTOMER = "customer", "The customer's one quoting job"
+        CREATED = "created", "New job for the estimate"
+        MANUAL = "manual", "Linked by hand"
+
+    number = models.CharField(max_length=40, unique=True)
+    customer_name = models.CharField(max_length=255, blank=True)
+    customer_email = models.EmailField(blank=True)
+    currency = models.CharField(max_length=3, default="CAD")
+    total_cents = models.BigIntegerField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    job = models.ForeignKey(
+        "jobs.Job",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="square_estimates",
+    )
+    match_method = models.CharField(max_length=10, choices=Match.choices, blank=True)
+    linked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    not_a_job_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    not_a_job_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "square_estimate"
+        ordering = ["-sent_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"Estimate {self.number}"
+
+    @property
+    def state(self) -> str:
+        return "Accepted" if self.accepted_at else "Sent"
+
+
+class EstimateEmail(models.Model):
+    """Each Square estimate email read from the mailbox, once. Only what was parsed is
+    kept, not the email itself."""
+
+    class Kind(models.TextChoices):
+        SENT = "sent", "Estimate sent"
+        ACCEPTED = "accepted", "Estimate accepted"
+        OTHER = "other", "Not an estimate email"
+
+    message_id = models.CharField(max_length=255, unique=True)  # Graph's immutable ID
+    received_at = models.DateTimeField()
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    estimate = models.ForeignKey(
+        SquareEstimate, null=True, blank=True, on_delete=models.SET_NULL, related_name="emails"
+    )
+    error = models.TextField(blank=True)
+    processed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "estimate_email"
+        ordering = ["-received_at"]
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} email {self.received_at:%Y-%m-%d %H:%M}"

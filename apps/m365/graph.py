@@ -7,6 +7,7 @@ consent, limited by Exchange RBAC for Applications to info@ and tracker-test@.
 from __future__ import annotations
 
 import threading
+from datetime import UTC
 
 import msal
 import requests
@@ -80,3 +81,46 @@ def send_mail(
     )
     if response.status_code != 202:
         raise GraphError(f"sendMail failed ({response.status_code}): {response.text[:500]}")
+
+
+def list_messages(mailbox: str, *, senders: list[str], since):
+    """Messages in `mailbox` received since `since` from any of `senders`, oldest first,
+    each with its body as plain text. Other mail is listed by sender only, never opened.
+
+    Needs the Exchange role "Application Mail.Read" scoped to the mailbox (server setup,
+    section 9)."""
+    wanted = {s.lower() for s in senders}
+    headers = {"Authorization": f"Bearer {get_token()}", "Prefer": 'IdType="ImmutableId"'}
+    url = f"{GRAPH_URL}/users/{mailbox}/messages"
+    params = {
+        "$filter": f"receivedDateTime ge {since.astimezone(UTC):%Y-%m-%dT%H:%M:%SZ}",
+        "$orderby": "receivedDateTime asc",
+        "$select": "id,subject,from,receivedDateTime",
+        "$top": "100",
+    }
+    matched = []
+    for _ in range(50):
+        response = requests.get(url, headers=headers, params=params, timeout=TIMEOUT_SECONDS)
+        if response.status_code != 200:
+            raise GraphError(
+                f"Reading {mailbox} failed ({response.status_code}): {response.text[:300]}"
+            )
+        page = response.json()
+        for message in page.get("value", []):
+            sender = ((message.get("from") or {}).get("emailAddress") or {}).get("address", "")
+            if sender.lower() in wanted:
+                matched.append(message)
+        url, params = page.get("@odata.nextLink"), None
+        if not url:
+            break
+    text = {**headers, "Prefer": 'IdType="ImmutableId", outlook.body-content-type="text"'}
+    for message in matched:
+        response = requests.get(
+            f"{GRAPH_URL}/users/{mailbox}/messages/{message['id']}",
+            headers=text,
+            params={"$select": "id,subject,from,receivedDateTime,body"},
+            timeout=TIMEOUT_SECONDS,
+        )
+        if response.status_code != 200:
+            raise GraphError(f"Reading a message failed ({response.status_code})")
+        yield response.json()

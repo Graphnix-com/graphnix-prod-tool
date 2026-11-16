@@ -208,6 +208,12 @@ see [sign-in-setup.md](sign-in-setup.md).
    ```
    The object ID comes from **Enterprise applications** (not App registrations). Changes
    can take up to an hour to apply.
+
+   For Square estimates, the tracker also **reads** Square's emails in `info@` (see
+   square-setup.md, "Estimates"). Same scope, read role:
+   ```powershell
+   New-ManagementRoleAssignment -App <client id> -Role "Application Mail.Read" -CustomResourceScope "Graphnix tracker mailboxes"
+   ```
 4. Fill `M365_TENANT_ID`, `M365_CLIENT_ID`, `M365_CLIENT_SECRET` in both `.env` files and
    redeploy. Test from the server:
    ```bash

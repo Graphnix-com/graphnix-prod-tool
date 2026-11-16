@@ -166,7 +166,7 @@
         {% if perms.jobs.view_job %}<a href="{% url 'jobs:list' %}" class="{% if request.resolver_match.app_name == 'jobs' %}here{% endif %}">Board</a>{% endif %}
         {% if perms.sales.view_inquiry %}<a href="{% url 'sales:list' %}" class="{% if request.resolver_match.app_name == 'sales' %}here{% endif %}">Requests</a>{% endif %}
         {% if perms.customers.view_customer %}<a href="{% url 'customers:list' %}" class="{% if request.resolver_match.app_name == 'customers' %}here{% endif %}">Customers</a>{% endif %}
-        {% if perms.integrations.link_square_invoice %}<a href="{% url 'integrations:inbox' %}" class="{% if request.resolver_match.url_name == 'inbox' %}here{% endif %}">Invoices{% if invoices_to_link %} <span class="pill customer" title="Invoices to link to a job">{{ invoices_to_link }}</span>{% endif %}</a>{% endif %}
+        {% if perms.integrations.link_square_invoice %}<a href="{% url 'integrations:inbox' %}" class="{% if request.resolver_match.url_name == 'inbox' %}here{% endif %}">Invoices{% if square_to_link %} <span class="pill customer" title="Invoices and estimates to link to a job">{{ square_to_link }}</span>{% endif %}</a>{% endif %}
         {% if user.is_staff %}<a href="{% url 'admin:index' %}">Admin</a>{% endif %}
       {% endif %}
     </nav>

@@ -11,5 +11,8 @@ urlpatterns = [
     path("invoices/<int:pk>/new-job/", views.invoice_new_job, name="invoice_new_job"),
     path("invoices/<int:pk>/unlink/", views.invoice_unlink, name="invoice_unlink"),
     path("invoices/<int:pk>/not-a-job/", views.invoice_set_aside, name="invoice_set_aside"),
+    path("estimates/<int:pk>/link/", views.estimate_link, name="estimate_link"),
+    path("estimates/<int:pk>/new-job/", views.estimate_new_job, name="estimate_new_job"),
+    path("estimates/<int:pk>/not-a-job/", views.estimate_set_aside, name="estimate_set_aside"),
     path("payment-gates/", views.payment_gates, name="payment_gates"),
 ]

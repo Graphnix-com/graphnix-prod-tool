@@ -28,6 +28,9 @@ __all__ = [
     "reopen_cancelled",
     "reopen_mockup",
     "skip_mockup",
+    "square_estimate_job",
+    "square_quote_approved",
+    "square_quote_sent",
     "store_order_job",
 ]
 
@@ -213,6 +216,37 @@ def square_invoiced(job: Job, *, note: str, event_id: str = "") -> Job:
     )
 
 
+def _system_job(
+    *, customer, title: str, status: str, note: str, source="", fulfillment="", event_id=""
+) -> Job:
+    """A job made by the tracker itself from something Square reported, already at
+    `status`, with Square as the source of its first history row."""
+    now = timezone.now()
+    job = Job(
+        customer=customer,
+        title=title[:200],
+        status=status,
+        status_changed_at=now,
+        source=source,
+        fulfillment_method=fulfillment,
+    )
+    _on_enter(job, status, now)
+    job.save()
+    JobStatusHistory.objects.create(
+        job=job,
+        from_status="",
+        to_status=status,
+        source=JobStatusHistory.Source.SQUARE,
+        note=note,
+        changed_at=now,
+    )
+    changes = {"status": [None, status], "job_number": [None, job.job_number]}
+    if event_id:
+        changes["square_event"] = [None, event_id]
+    record(None, job, "create", changes)
+    return job
+
+
 @transaction.atomic
 def store_order_job(
     *, customer, title: str, note: str, fulfillment: str = "", event_id: str = ""
@@ -221,30 +255,46 @@ def store_order_job(
     approved, so it starts at Mock-Up Approved and its due date runs from now."""
     from apps.sales.models import Channel
 
-    now = timezone.now()
-    job = Job(
+    return _system_job(
         customer=customer,
-        title=title[:200],
+        title=title,
         status=Status.MOCKUP_APPROVED,
-        status_changed_at=now,
-        source=Channel.ONLINE_STORE,
-        fulfillment_method=fulfillment,
-    )
-    _on_enter(job, Status.MOCKUP_APPROVED, now)
-    job.save()
-    JobStatusHistory.objects.create(
-        job=job,
-        from_status="",
-        to_status=Status.MOCKUP_APPROVED,
-        source=JobStatusHistory.Source.SQUARE,
         note=note,
-        changed_at=now,
+        source=Channel.ONLINE_STORE,
+        fulfillment=fulfillment,
+        event_id=event_id,
     )
-    changes = {"status": [None, Status.MOCKUP_APPROVED], "job_number": [None, job.job_number]}
-    if event_id:
-        changes["square_event"] = [None, event_id]
-    record(None, job, "create", changes)
-    return job
+
+
+@transaction.atomic
+def square_estimate_job(*, customer, title: str, note: str) -> Job:
+    """A job for a Square estimate sent to a customer with no job waiting: at Quote Sent."""
+    return _system_job(customer=customer, title=title, status=Status.QUOTE_SENT, note=note)
+
+
+@transaction.atomic
+def square_quote_sent(job: Job, *, note: str) -> Job:
+    """A Square estimate was sent for this job: Quoting moves to Quote Sent."""
+    job = _locked(job)
+    if job.status != Status.QUOTING:
+        return job
+    return _change_status(
+        job, Status.QUOTE_SENT, None, note, JobStatusHistory.Source.SQUARE, "status_change"
+    )
+
+
+@transaction.atomic
+def square_quote_approved(job: Job, *, note: str) -> Job:
+    """The customer accepted the Square estimate: Quoting or Quote Sent moves to Quote
+    Approved. A job already further on stays where it is."""
+    job = _locked(job)
+    if job.status not in (Status.QUOTING, Status.QUOTE_SENT):
+        if job.quote_approved_at is None and job.status in flow.BEFORE_INVOICED | {Status.INVOICED}:
+            Job.objects.filter(pk=job.pk).update(quote_approved_at=timezone.now())
+        return job
+    return _change_status(
+        job, Status.QUOTE_APPROVED, None, note, JobStatusHistory.Source.SQUARE, "status_change"
+    )
 
 
 def skip_mockup(job: Job, *, user, note: str) -> Job:

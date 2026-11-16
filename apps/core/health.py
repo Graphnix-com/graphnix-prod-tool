@@ -141,11 +141,30 @@ def check_square_nightly(now: datetime | None = None) -> HealthCheck:
     return HealthCheck(name, OK, detail, at)
 
 
+def check_estimate_mail(now: datetime | None = None) -> HealthCheck:
+    from apps.integrations import estimates
+
+    now = now or timezone.now()
+    name = "Square estimate emails"
+    result = estimates.last_result()
+    if not result:
+        return HealthCheck(name, WARN, "Not read yet (every 5 minutes)")
+    at = datetime.fromisoformat(result["at"])
+    if result.get("error"):
+        return HealthCheck(name, FAIL, result["error"], at)
+    if now - at > timedelta(minutes=30):
+        return HealthCheck(name, WARN, "Not read for over 30 minutes: is the worker running?", at)
+    newest = result.get("newest") or "none yet"
+    return HealthCheck(name, OK, f"Newest estimate email: {newest[:16].replace('T', ' ')}", at)
+
+
 def all_checks() -> list[HealthCheck]:
     checks = [check_database()]
     if checks[0].status == OK:
         checks.append(check_worker())
         if settings.SQUARE_ENABLED:
             checks += [check_square_webhooks(), check_square_nightly()]
+        if settings.ESTIMATE_MAILBOX:
+            checks.append(check_estimate_mail())
     checks += [check_backup_created(), check_backup_pulled()]
     return checks

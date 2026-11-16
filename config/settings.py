@@ -162,6 +162,13 @@ SQUARE_ENABLED = bool(SQUARE_ACCESS_TOKEN and SQUARE_WEBHOOK_SIGNATURE_KEY)
 # Square order sources that are online stores: their orders become jobs at Mock-Up
 # Approved. Matched ignoring case, anywhere in the source name. Counter sales aren't.
 SQUARE_STORE_SOURCES = env.list("SQUARE_STORE_SOURCES", default=["Square Online"])
+# Square estimates are read from Square's emails (its API has none): the mailbox they reach
+# (the tracker's Microsoft 365 app needs read access to it), and Square's sending addresses.
+ESTIMATE_MAILBOX = env("ESTIMATE_MAILBOX", default="")
+ESTIMATE_SENDERS = env.list(
+    "ESTIMATE_SENDERS",
+    default=["invoicing@messaging.squareup.com", "messenger@messaging.squareup.com"],
+)
 
 EMAIL_BACKEND = (
     "apps.m365.email_backend.GraphEmailBackend"

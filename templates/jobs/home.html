@@ -14,6 +14,11 @@
       {% for c in panel.graphnix %}{% include "jobs/_home_row.html" %}{% empty %}<p class="muted" style="margin:0">Nothing.</p>{% endfor %}
       <h3>Waiting On Customer · {{ panel.customer|length }}</h3>
       {% for c in panel.customer %}{% include "jobs/_home_row.html" %}{% empty %}<p class="muted" style="margin:0">Nothing.</p>{% endfor %}
+      {% if panel.title == "Quotes" %}
+        <h3>Follow Up · {{ follow_ups|length }} <span class="muted" style="font-weight:400">sent {{ follow_up_days }}+ days ago, no answer</span></h3>
+        {% for c in follow_ups %}{% include "jobs/_home_row.html" %}{% empty %}<p class="muted" style="margin:0">Nothing.</p>{% endfor %}
+        {% if estimates_to_link %}<p class="help"><a href="{% url 'integrations:inbox' %}#estimates">{{ estimates_to_link }} estimate{{ estimates_to_link|pluralize }} to link</a></p>{% endif %}
+      {% endif %}
       {% if panel.title == "Invoices" %}
         <p class="help">Owing on open jobs: <strong>{{ owing_cents|money }}</strong> across {{ owing_jobs }} job{{ owing_jobs|pluralize }}
           · Paid, not started: <strong>{{ paid_not_started }}</strong>
