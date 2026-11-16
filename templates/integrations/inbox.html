@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% load money %}
-{% block title %}Invoices to link · GRAPHNIX tracker{% endblock %}
+{% block title %}Invoices · GRAPHNIX tracker{% endblock %}
 {% block content %}
-<h1>Invoices to link</h1>
-<p class="sub">Square invoices that matched no job. An invoice links itself when its title has the job's G- number; link these by hand, or set aside a sale with no production.</p>
+<h1>Invoices</h1>
+<p class="sub">Square invoices to link: these matched no job. An invoice links itself when its title has the job's G- number; link these by hand, or set aside a sale with no production.</p>
 <table>
   <tr><th>Invoice</th><th>Title</th><th>Customer</th><th>Total</th><th>Status</th><th>Updated</th><th>Link to job</th><th></th></tr>
   {% for inv in invoices %}

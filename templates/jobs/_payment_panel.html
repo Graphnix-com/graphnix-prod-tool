@@ -21,7 +21,7 @@
           <td>{{ inv.due_date|date:"j M Y"|default:"—" }}</td>
           <td>{% if perms.integrations.link_square_invoice %}
             <form method="post" action="{% url 'integrations:invoice_unlink' inv.pk %}" class="inline">
-              {% csrf_token %}<button type="submit" title="Wrong job? Unlink it; it goes back to Invoices to link.">Unlink</button>
+              {% csrf_token %}<button type="submit" title="Wrong job? Unlink it; it goes back to Invoices.">Unlink</button>
             </form>{% endif %}</td>
         </tr>
       {% endfor %}

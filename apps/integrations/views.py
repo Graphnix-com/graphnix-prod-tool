@@ -103,7 +103,7 @@ def invoice_unlink(request, pk):
         messages.error(request, str(exc))
     else:
         messages.success(
-            request, f"Invoice {invoice.invoice_number} unlinked; it's in Invoices to link."
+            request, f"Invoice {invoice.invoice_number} unlinked; it's back in Invoices."
         )
     if job is not None:
         return redirect(f"/jobs/{job.pk}/?tab=details")

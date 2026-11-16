@@ -146,7 +146,7 @@ def test_an_unmatched_invoice_waits_in_the_inbox(client, manager, unmatched):
     client.force_login(manager)
     page = client.get(reverse("integrations:inbox")).content.decode()
     assert "Team tees" in page and "000123" in page
-    assert "Invoices to link" in page and ">1</span>" in page  # the header count
+    assert "<h1>Invoices</h1>" in page and ">1</span>" in page  # the header count
 
 
 def test_linking_by_hand_updates_the_job(client, manager, unmatched, job):

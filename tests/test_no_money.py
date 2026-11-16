@@ -5,10 +5,11 @@
 import re
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import URLResolver, get_resolver, reverse
 
 from apps.integrations import square
-from apps.jobs import money
+from apps.jobs import files, money
 from apps.jobs.models import Job, JobItem, JobItemSize, PaymentStatus, Status
 from apps.production.models import DecorationMethod, ProductionTask
 from apps.sales.models import Inquiry
@@ -21,7 +22,7 @@ pytestmark = pytest.mark.django_db
 MONEY = re.compile(r"Deposit|Unpaid|Refunded|Payment|payment|\$|1,234\.56|1234\.56|123456|500\.00")
 # Extra query strings that change what a page shows.
 VARIANTS = {
-    "jobs:list": ["", "?partial=1", "?side=1", "?payment=deposit"],
+    "jobs:list": ["", "?all=1", "?all=1&partial=1", "?side=1&all=1", "?payment=deposit&all=1"],
     "jobs:detail": ["?tab=items", "?tab=timeline", "?tab=details"],
     "jobs:search": ["?q=Acme", "?q=5521"],
 }
@@ -41,7 +42,8 @@ def every_url_name():
 
 
 @pytest.fixture
-def world(customer, make_user, settings):
+def world(customer, make_user, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
     settings.SQUARE_ENABLED = True  # payment gates on
     settings.SQUARE_ACCESS_TOKEN = ""
     settings.SQUARE_LOCATION_ID = ""
@@ -68,6 +70,8 @@ def world(customer, make_user, settings):
     square.apply({**linked, "status": "PARTIALLY_PAID"}, event_id="e1")
     square.apply({**linked, "version": 2, "status": "PARTIALLY_REFUNDED"}, refunded=1000)
     waiting = square.apply(invoice(id="inv:b", number="777", title="Counter sale"))
+    upload = SimpleUploadedFile("mockup.png", b"\x89PNG fake", content_type="image/png")
+    job_file = files.add(job, [upload], user=make_user("manager", "Office"))[0]
     return {
         "pk": {
             "customers": customer.pk,
@@ -77,6 +81,7 @@ def world(customer, make_user, settings):
             None: job.pk,
         },
         "item_pk": item.pk,
+        "file_pk": job_file.pk,
         "task_pk": task.pk,
         "job": job,
     }
@@ -104,8 +109,8 @@ def test_no_page_shows_money_to_production(role, client, make_user, world):
     seen = 0
     for name, url in urls(world):
         response = client.get(url)
-        if response.status_code != 200:
-            continue
+        if response.status_code != 200 or response.streaming:
+            continue  # a downloaded file is what staff uploaded, not a page
         body = response.content.decode()
         found = MONEY.search(body)
         assert not found, f"{role} sees {found.group()!r} on {url} ({name})"

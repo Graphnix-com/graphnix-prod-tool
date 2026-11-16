@@ -20,10 +20,15 @@ KIND_EDIT = "edit"
 
 # Shown elsewhere on the timeline, so their audit entries would be duplicates.
 _SKIP = {("jobs.job", "create"), ("jobs.job", "status_change"), ("jobs.job", "override")}
-_NOUN = {"jobs.job": "Job details", "jobs.jobitem": "Item", "production.productiontask": "Task"}
+_NOUN = {
+    "jobs.job": "Job details",
+    "jobs.jobitem": "Item",
+    "jobs.jobfile": "File",
+    "production.productiontask": "Task",
+}
 _VERB = {"create": "added", "update": "changed", "delete": "removed"}
 # Context keys recorded with an edit, not fields that changed.
-_CONTEXT = {"line", "task", "description"}
+_CONTEXT = {"line", "task", "description", "file"}
 # Money from Square: only for people who can see money (NFR-02).
 _MONEY = {"integrations.squareinvoice"}
 _MONEY_ACTIONS = {"payment"}
@@ -62,7 +67,7 @@ def _edit_entry(entry: AuditLog) -> Entry:
     changes = entry.changes or {}
     noun = _NOUN.get(entry.entity_type, entry.entity_type)
     name = ""
-    for key in ("task", "description"):
+    for key in ("task", "description", "file"):
         if key in changes:
             old, new = changes[key]
             name = new or old or ""

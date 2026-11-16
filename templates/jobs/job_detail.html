@@ -202,6 +202,7 @@
     </dl>
     {% if perms.jobs.change_job %}<p style="margin-bottom:0"><a class="button" href="{% url 'jobs:edit' job.pk %}">Edit details</a></p>{% endif %}
   </div>
+  {% include "jobs/_files.html" %}
   {% if can_see_money %}{% include "jobs/_payment_panel.html" %}{% endif %}
 {% endif %}
 {% endblock %}

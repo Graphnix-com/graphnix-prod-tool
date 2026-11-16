@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -9,11 +10,11 @@ from django.views.decorators.http import require_POST
 from apps.production.models import DecorationMethod, ProductionTask
 from apps.sales.models import Inquiry
 
-from . import assignment, board, editing, money, services, timeline
+from . import assignment, board, editing, files, money, services, timeline
 from .editing import Locked
 from .flags import Flagger
 from .forms import ItemForm, JobDetailsForm, NoteForm, TaskForm
-from .models import Job, JobItem, PaymentStatus
+from .models import Job, JobFile, JobItem, PaymentStatus
 from .services import InvalidMove
 
 TABS = ["items", "timeline", "details"]
@@ -60,8 +61,15 @@ def job_list(request):
     filters = board.Filters.from_request(request.GET, can_see_money)
     show_side = request.GET.get("side") == "1"
     flagger = Flagger()
+    own_lanes = board.lanes_for(request.user)
+    show_all = request.GET.get("all") == "1" or len(own_lanes) == len(board.LANES)
     context = {
-        "lanes": board.board(filters, show_side=show_side, flagger=flagger),
+        "lanes": board.board(
+            filters, show_side=show_side, flagger=flagger, only=None if show_all else own_lanes
+        ),
+        "show_all": show_all,
+        "own_lanes": own_lanes,
+        "limited": len(own_lanes) < len(board.LANES),
         "mine": board.assigned_to(request.user, flagger),
         "filters": filters,
         "show_side": show_side,
@@ -110,6 +118,9 @@ def job_detail(request, pk):
         "assign_others": any(p.pk != request.user.pk for p in assignable),
         "can_assign": job.status not in assignment.CLOSED,
     }
+    if tab == "details":
+        context["files"] = list(job.files.select_related("uploaded_by"))
+        context["file_types"] = ",".join(f".{e}" for e in sorted(files.ALLOWED))
     if tab == "details" and context["can_see_money"]:
         context["invoices"] = list(job.square_invoices.all())
         if job.amount_total_cents is not None:
@@ -297,3 +308,50 @@ def note_add(request, pk):
     else:
         messages.error(request, " ".join(form.errors.get("body", ["The note is empty."])))
     return redirect(_job_url(job, "timeline"))
+
+
+# --- Files -------------------------------------------------------------------------
+
+
+@login_required
+@require_POST
+@permission_required("jobs.view_job", raise_exception=True)
+def file_add(request, pk):
+    job = get_object_or_404(Job, pk=pk)
+    try:
+        saved = files.add(job, request.FILES.getlist("files"), user=request.user)
+    except (ValidationError, PermissionDenied) as exc:
+        messages.error(request, " ".join(getattr(exc, "messages", [str(exc)])))
+    else:
+        messages.success(request, f"Added {len(saved)} file{'s' if len(saved) != 1 else ''}.")
+    return redirect(_job_url(job, "details"))
+
+
+@login_required
+@permission_required("jobs.view_job", raise_exception=True)
+def file_download(request, pk, file_pk):
+    """Through the tracker only. Photos open in the browser; everything else (SVG can carry
+    script, AI and EPS need a design app) downloads."""
+    f = get_object_or_404(JobFile, pk=file_pk, job_id=pk)
+    try:
+        handle = f.file.open("rb")
+    except FileNotFoundError as exc:
+        raise Http404 from exc
+    response = FileResponse(handle, as_attachment=not f.is_image, filename=f.name)
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Content-Security-Policy"] = "default-src 'none'; img-src 'self'; sandbox"
+    response["Cache-Control"] = "private, max-age=3600"
+    return response
+
+
+@login_required
+@require_POST
+def file_delete(request, pk, file_pk):
+    f = get_object_or_404(JobFile, pk=file_pk, job_id=pk)
+    try:
+        files.remove(f, user=request.user)
+    except PermissionDenied as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, f"Removed {f.name}.")
+    return redirect(_job_url(f.job, "details"))

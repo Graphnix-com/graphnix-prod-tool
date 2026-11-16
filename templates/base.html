@@ -91,6 +91,22 @@
                border-radius: 6px; padding: 7px 9px; margin-bottom: 6px; color: var(--ink);
                text-decoration: none; font-size: 13px; line-height: 1.4; }
     .jobcard:hover { border-color: var(--accent-light); }
+    .jobcard summary { cursor: pointer; list-style: none; }
+    .jobcard summary::-webkit-details-marker { display: none; }
+    .jobcard summary::before { content: "▸ "; color: var(--quiet); }
+    .jobcard[open] summary::before { content: "▾ "; }
+    .jobcard .more { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
+    .jobcard .open { font-weight: 600; }
+    .files { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .file { border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: var(--card); }
+    .file .thumb { display: flex; align-items: center; justify-content: center; height: 110px;
+                   background: #f3f3f1; border-radius: 4px; margin-bottom: 6px; overflow: hidden;
+                   text-decoration: none; }
+    .file .thumb img { max-width: 100%; max-height: 110px; object-fit: contain; }
+    .file .ext { font-weight: 700; color: var(--accent); font-size: 20px; }
+    .file .name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis;
+                  white-space: nowrap; }
+    input[type=file] { font: inherit; max-width: 100%; }
     .jobcard.overdue { border-left: 4px solid var(--bad); }
     .jobcard.at_risk { border-left: 4px solid var(--warn); }
     .jobcard .num { font-weight: 700; }
@@ -146,7 +162,7 @@
         {% if perms.jobs.view_job %}<a href="{% url 'jobs:list' %}" class="{% if request.resolver_match.app_name == 'jobs' %}here{% endif %}">Board</a>{% endif %}
         {% if perms.sales.view_inquiry %}<a href="{% url 'sales:list' %}" class="{% if request.resolver_match.app_name == 'sales' %}here{% endif %}">Inquiries</a>{% endif %}
         {% if perms.customers.view_customer %}<a href="{% url 'customers:list' %}" class="{% if request.resolver_match.app_name == 'customers' %}here{% endif %}">Customers</a>{% endif %}
-        {% if invoices_to_link %}<a href="{% url 'integrations:inbox' %}" class="{% if request.resolver_match.url_name == 'inbox' %}here{% endif %}">Invoices to link <span class="pill customer">{{ invoices_to_link }}</span></a>{% endif %}
+        {% if perms.integrations.link_square_invoice %}<a href="{% url 'integrations:inbox' %}" class="{% if request.resolver_match.url_name == 'inbox' %}here{% endif %}">Invoices{% if invoices_to_link %} <span class="pill customer" title="Invoices to link to a job">{{ invoices_to_link }}</span>{% endif %}</a>{% endif %}
         {% if user.is_staff %}<a href="{% url 'admin:index' %}">Admin</a>{% endif %}
       {% endif %}
     </nav>

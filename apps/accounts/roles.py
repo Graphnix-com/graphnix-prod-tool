@@ -55,6 +55,9 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "jobs.move_finish_stages",
         "jobs.override_job_flow",
         "jobs.view_money",
+        "jobs.add_jobfile",
+        "jobs.view_jobfile",
+        "jobs.delete_jobfile",
         "integrations.view_squareinvoice",
         "integrations.link_square_invoice",
         "production.assign_staff_task",
@@ -66,6 +69,8 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
     ],
     PRODUCTION: [
         "jobs.view_job",
+        "jobs.add_jobfile",
+        "jobs.view_jobfile",
         "jobs.view_jobstatushistory",
         "jobs.add_jobnote",
         "jobs.view_jobnote",
