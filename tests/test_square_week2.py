@@ -387,8 +387,10 @@ def test_the_customer_import(api, monkeypatch, customer):
     customer.refresh_from_db()
     assert customer.square_customer_id == "SQ-PAT"
     assert Customer.objects.get(square_customer_id="SQ-NEW").display_name == "Sam Lee"
-    again = nightly.import_customers()
+    said = []
+    again = nightly.import_customers(progress=said.append)
     assert again["already_linked"] == 2 and again["created"] == 0
+    assert said and "2 customers to check" in said[0]  # the command prints these as it goes
 
 
 def test_editing_an_app_setting_in_the_admin_is_audited(client, admin_user):

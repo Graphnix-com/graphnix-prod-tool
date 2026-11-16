@@ -5,9 +5,16 @@ a server's `.env`, Square is off on that server and the tracker works as in Step
 
 Do staging first, with the Square **sandbox**. Production uses the real account, later.
 
-## A. The Square application (developer.squareup.com, as the Square account owner)
+## A. The Square application (developer.squareup.com, signed in to Graphnix's Square account)
 
-1. **Applications → +** and name it `GRAPHNIX tracker`.
+The application must belong to **Graphnix's own Square account**, the one the shop sells
+through, signed in as its owner (Jenn or Nick) or as a team member they've given developer
+access. An app made under a personal Square account has its own separate sandbox and
+production: its production token can't see Graphnix's customers, invoices or orders. One app
+serves both stages: the sandbox side for staging, the production side for production.
+
+1. Sign in at developer.squareup.com with Graphnix's Square login. **Applications → +** and
+   name it `GRAPHNIX tracker`.
 2. Switch to **Sandbox** at the top of the page.
 3. **Credentials**: copy the **Sandbox access token**. It is a secret.
 4. **Locations**: copy the sandbox **Location ID**.
@@ -40,16 +47,19 @@ included: Square signs it with every delivery.
 
 1. In the tracker, note a job's **G-** number (on the job page and in search).
 2. In the Square sandbox, create an invoice with that number in its **title**, for example
-   `G-1042 team tees`, and send it.
+   `G-1042 team tees`, and send it. Keep the dash: `G1042` isn't read as a job number, so a
+   blank's style code such as Gildan `G2000` never links an invoice by mistake.
 3. Within a minute the job is at **Invoiced** (if it was still at a quote stage), and its
    Details tab shows the payment status. The timeline shows "Square invoice … linked".
 4. Pay it in the sandbox (the invoice page has a test card). The job shows **Paid**.
 
-What staff need to know: **put the job's G- number in the Square invoice title.** Square
-gives the invoice its own number, so the G- number is how the tracker finds the job. An
-invoice without one waits under **Invoices** in the header (Admin and Manager):
-type the job number and **Link**, or **Not a job** for a sale with no production. A wrong
-match is fixed with **Unlink** in the job's Payment panel (Details tab).
+Most invoices need nothing from staff: an invoice from an accepted estimate links to the
+estimate's job by itself (see **Estimates** below). For an invoice made directly in Square,
+**put the job's number, with its dash, in the invoice title** (`G-1042`). An invoice the
+tracker can't place waits under **Invoices** in the header (Admin and Manager): type the
+job number and **Link**, **Create job** to start a job from it, or **Not a job** for a sale
+with no production. A wrong match is fixed with **Unlink** in the job's Payment panel
+(Details tab).
 
 The token, the location and the invoices must all belong to the same Square account. In
 the sandbox, each test account has its own; use the **Default Test Account** for all three.
@@ -75,8 +85,10 @@ docker compose exec web python manage.py import_square_customers --dry-run
 docker compose exec web python manage.py import_square_customers
 ```
 
-Customers already linked are skipped, so it's safe to run again. After go-live, a new
-Square customer whose email matches a tracker customer links itself.
+It reads every invoice first, then checks each customer: a thousand customers take a few
+minutes, and it prints its progress as it goes. Customers already linked are skipped, so
+it's safe to run again (or to stop with Ctrl+C and rerun). After go-live, a new Square
+customer whose email matches a tracker customer links itself.
 
 ## Online store orders
 
@@ -102,9 +114,22 @@ It lists the last 30 days of orders and counts them by source, marking the ones 
 become jobs. If the stores show under another name, set it in `.env`, comma-separated:
 `SQUARE_STORE_SOURCES=Square Online,Team Shop`.
 
+Each job takes the store order's number as its job number (shown instead of a G- number).
+
 The webhook subscription needs `order.created` and `order.updated` (section A). The nightly
 check also reads store orders updated in the last 3 days, so a missed webhook still makes
 its job.
+
+**At go-live,** bring in the store orders already placed but not yet made: every order
+still open (not completed or cancelled) from the last year. Preview first:
+
+```bash
+docker compose exec web python manage.py import_square_orders --open --dry-run
+docker compose exec web python manage.py import_square_orders --open
+```
+
+`--days 90` looks back less far. Orders already in the tracker are skipped, so it's safe to
+run again.
 
 ## Estimates (from Square's emails)
 
@@ -159,8 +184,10 @@ account. Add `--live --location <production location ID>` to either import, and 
 and kept nowhere: not in `.env`, the shell history or the chat. Staging carries on with
 the sandbox afterwards.
 
-Get both from developer.squareup.com, the `GRAPHNIX tracker` app, switched to
-**Production**: **Credentials** (access token) and **Locations** (location ID).
+Get both from developer.squareup.com, signed in to Graphnix's Square account (section A),
+the `GRAPHNIX tracker` app switched to **Production**: **Credentials** (access token) and
+**Locations** (location ID). A token from an app under a personal Square account reads that
+account, not Graphnix's, and the import says the location can't be read.
 
 ```bash
 docker compose exec web python manage.py import_square_customers --live --location LXXXX --dry-run
@@ -178,13 +205,30 @@ docker compose exec web python manage.py import_square_orders --live --location 
 
 `import_square_invoices` takes `--latest N` (20 at most), `--number <Square invoice
 number>` or `--id <invoice ID>`, each repeatable. Real invoices have no G- number, so they
-wait under **Invoices**: link each to a test job to see its payment status arrive.
-Estimates can't be imported: Square's API doesn't offer them. Type the estimate number on
-the job instead.
+wait under **Invoices**: link each to a test job, or **Create job**, to see its payment
+status arrive. Estimates can't be imported: Square's API doesn't offer them. They arrive by
+email instead (see **Estimates**).
 
 Staging then holds real names, emails and phone numbers. Treat it like production:
-staff sign-in only, the same backups. Delete the imported records when you're done
-testing.
+staff sign-in only, the same backups.
+
+### Clearing it when testing is done
+
+```bash
+docker compose exec web python manage.py clear_square_data
+docker compose exec web python manage.py clear_square_data --yes
+```
+
+The first only shows what would go. `--yes` removes everything that came from Square,
+sandbox included: customers linked to Square or made from it (with their contacts,
+addresses and jobs), jobs made for store orders and estimates, every stored invoice, order,
+estimate and estimate email, and the audit entries about them. Staff's own customers and
+jobs stay; one that was linked to an invoice or estimate is unlinked and its payment reset.
+Square itself isn't touched. It refuses to run where `APP_ENV=production`.
+
+While staging still reads `info@` (`ESTIMATE_MAILBOX`), new estimate emails keep arriving,
+and the last day's are read again on the next check. Remove `ESTIMATE_MAILBOX` from
+staging's `.env` first if it should stay empty.
 
 ## When something's wrong
 

@@ -128,29 +128,40 @@ def run(now=None) -> dict:
     return _save(result)
 
 
-def import_customers(*, years: int = 2, dry_run: bool = False) -> dict:
+def import_customers(*, years: int = 2, dry_run: bool = False, progress=None) -> dict:
     """Tracker customers for the Square customers invoiced in the last `years` years
     (question 8). A Square customer already linked is left alone; one whose email matches
-    a tracker customer is linked to it; the rest are created. Square is never written."""
+    a tracker customer is linked to it; the rest are created. Square is never written.
+
+    `progress(text)`, if given, is called as it goes: it reads every invoice first, then
+    each customer one at a time, which takes a few minutes for a thousand."""
     from django.db import transaction
 
     from apps.audit.services import record
     from apps.customers.models import Customer
 
     since = timezone.now() - timedelta(days=365 * years)
-    ids = []
+    say = progress or (lambda text: None)
+    ids: dict[str, None] = {}  # in order, without repeats
+    invoices = 0
     locations = (
         [settings.SQUARE_LOCATION_ID] if settings.SQUARE_LOCATION_ID else square.list_locations()
     )
     for loc in locations:
         for data in square.list_invoices(loc, max_pages=200):
+            invoices += 1
+            if invoices % 500 == 0:
+                say(f"Read {invoices} invoices…")
             created = parse_datetime(data.get("created_at") or "")
             cid = (data.get("primary_recipient") or {}).get("customer_id")
-            if cid and (created is None or created >= since) and cid not in ids:
-                ids.append(cid)
+            if cid and (created is None or created >= since):
+                ids.setdefault(cid)
+    say(f"Read {invoices} invoices: {len(ids)} customers to check.")
 
     counts = {"square_customers": len(ids), "already_linked": 0, "matched": 0, "created": 0}
-    for cid in ids:
+    for done, cid in enumerate(ids, 1):
+        if done % 100 == 0:
+            say(f"Checked {done} of {len(ids)} customers…")
         if Customer.objects.filter(square_customer_id=cid).exists():
             counts["already_linked"] += 1
             continue

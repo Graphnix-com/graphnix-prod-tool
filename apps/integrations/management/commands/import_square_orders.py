@@ -4,6 +4,7 @@
     python manage.py import_square_orders --latest 3 --dry-run
     python manage.py import_square_orders --latest 3
     python manage.py import_square_orders --id <order id>
+    python manage.py import_square_orders --open --dry-run   # go-live: every open store order
     ... --live --location L...   # the real account, token typed at a hidden prompt
 
 Only orders whose source is in SQUARE_STORE_SOURCES (default "Square Online") become jobs;
@@ -31,16 +32,29 @@ class Command(BaseCommand):
         )
         parser.add_argument("--latest", type=int, default=0, help="The N newest store orders.")
         parser.add_argument("--id", action="append", default=[], dest="ids")
-        parser.add_argument("--days", type=int, default=30, help="How far back to look.")
+        parser.add_argument(
+            "--open",
+            action="store_true",
+            dest="all_open",
+            help="Go-live: every store order still open (not completed or cancelled).",
+        )
+        parser.add_argument(
+            "--days",
+            type=int,
+            default=None,
+            help="How far back to look (30 days; a year with --open).",
+        )
         parser.add_argument("--dry-run", action="store_true")
         _live.add_arguments(parser)
 
-    def handle(self, *args, show, latest, ids, days, dry_run, live, location, **options):
+    def handle(self, *args, show, latest, ids, all_open, days, dry_run, live, location, **options):
         _live.apply(live, location)
         if not square.api_configured():
             raise CommandError("Square isn't set up here (SQUARE_ACCESS_TOKEN).")
-        if not (show or latest or ids):
-            raise CommandError("Say what: --list, --latest N or --id.")
+        if not (show or latest or ids or all_open):
+            raise CommandError("Say what: --list, --latest N, --open or --id.")
+        if days is None:
+            days = 365 if all_open else 30
         if latest > 20:
             raise CommandError("--latest is for a few samples: 20 at most.")
         try:
@@ -57,6 +71,15 @@ class Command(BaseCommand):
                 store = [o for o in self._recent(days) if orders.is_store_order(o)]
                 store.sort(key=lambda o: o.get("created_at") or "", reverse=True)
                 picked.extend(store[:latest])
+            if all_open:
+                seen = {o["id"] for o in picked}
+                found = [
+                    o
+                    for o in self._recent(days, states=["OPEN"])
+                    if orders.is_store_order(o) and o["id"] not in seen
+                ]
+                found.sort(key=lambda o: o.get("created_at") or "")  # oldest first
+                picked.extend(found)
             rows = orders.import_orders(picked, dry_run=dry_run)
         except square.SquareError as exc:
             raise CommandError(str(exc)) from exc
@@ -68,11 +91,11 @@ class Command(BaseCommand):
         note = " (dry run: nothing saved)" if dry_run else ""
         self.stdout.write(f"{len(rows)} order(s){note}.")
 
-    def _recent(self, days):
+    def _recent(self, days, states=None):
         since = (timezone.now() - timedelta(days=days)).isoformat()
         locations = [settings.SQUARE_LOCATION_ID] if settings.SQUARE_LOCATION_ID else None
         for loc in locations or square.list_locations():
-            yield from square.search_orders(loc, updated_since=since, max_pages=20)
+            yield from square.search_orders(loc, updated_since=since, max_pages=20, states=states)
 
     def _list(self, days):
         counts = {}

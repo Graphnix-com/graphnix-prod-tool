@@ -170,10 +170,16 @@ def test_an_invoice_with_the_job_number_in_its_title_links_itself(job):
     assert inv.job == job and inv.match_method == SquareInvoice.Match.TITLE
 
 
-@pytest.mark.parametrize("title", ["Order g1042", "Tees (G 1042)", "G-1042: 50 tees"])
+@pytest.mark.parametrize("title", ["Order g-1042", "Tees (G - 1042)", "G-1042: 50 tees"])
 def test_the_job_number_can_be_written_a_few_ways(job, title):
     run(event(inv=invoice(title=title)))
     assert SquareInvoice.objects.get().job == job
+
+
+@pytest.mark.parametrize("title", ["Gildan G1042 tees", "Tees G 1042", "SG-1042 hoodies"])
+def test_a_style_code_isnt_a_job_number(job, title):
+    run(event(inv=invoice(title=title)))
+    assert SquareInvoice.objects.get().job is None
 
 
 def test_an_invoice_matching_nothing_waits_unlinked(job):

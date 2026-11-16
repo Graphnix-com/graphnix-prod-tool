@@ -44,8 +44,9 @@ TIMEOUT_SECONDS = 15
 CANCELLED_STATES = {"CANCELED", "FAILED", "DELETED"}
 REFUND_STATES = {"REFUNDED", "PARTIALLY_REFUNDED"}
 
-# G-1042, g1042, G 1042: the tracker's job number, not part of a longer word or number.
-_JOB_NUMBER = re.compile(r"(?<![A-Za-z0-9])G-?\s?(\d{3,})(?!\d)", re.IGNORECASE)
+# G-1042, g-1042, G - 1042: the tracker's job number, not part of a longer word or number.
+# The dash is required: "G2000" or "G 500" is a blank's style code, not a job.
+_JOB_NUMBER = re.compile(r"(?<![A-Za-z0-9])G\s?-\s?(\d{3,})(?!\d)", re.IGNORECASE)
 
 
 class SquareError(RuntimeError):
