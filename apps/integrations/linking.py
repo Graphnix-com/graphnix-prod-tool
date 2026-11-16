@@ -86,3 +86,58 @@ def set_aside(invoice: SquareInvoice, *, user) -> SquareInvoice:
     invoice.save(update_fields=["not_a_job_by", "not_a_job_at", "updated_at"])
     record(user, invoice, "not_a_job", {"invoice": [None, invoice.invoice_number]})
     return invoice
+
+
+# --- A new job from an invoice -----------------------------------------------------
+
+
+def customer_for(invoice: SquareInvoice):
+    """The tracker customer linked to the invoice's Square customer, if any."""
+    from apps.customers.models import Customer
+
+    if not invoice.square_customer_id:
+        return None
+    return Customer.objects.filter(square_customer_id=invoice.square_customer_id).first()
+
+
+def same_name(invoice: SquareInvoice):
+    """Tracker customers named like the invoice's recipient, to pick from."""
+    from apps.customers.models import Customer
+
+    name = " ".join((invoice.recipient_name or "").split())
+    if not name:
+        return Customer.objects.none()
+    return Customer.objects.filter(display_name__iexact=name).order_by("email", "pk")
+
+
+@transaction.atomic
+def create_job_from(invoice: SquareInvoice, *, user, title: str, customer=None):
+    """A new job at Invoiced for an invoice that matched none, linked to it. The customer is
+    the one linked in Square, else the one picked, else a new one named as on the invoice."""
+    from apps.customers.models import Customer
+    from apps.jobs.models import Status
+    from apps.jobs.services import create_job
+
+    _require(user)
+    invoice = _locked(invoice)
+    if invoice.job_id is not None:
+        raise PermissionDenied("This invoice is already on a job.")
+    if invoice.status in square.CANCELLED_STATES:
+        raise PermissionDenied("This invoice is cancelled in Square.")
+    customer = customer_for(invoice) or customer
+    if customer is None:
+        if not user.has_perm("customers.add_customer"):
+            raise PermissionDenied("You can't add customers.")
+        customer = Customer.objects.create(
+            display_name=(invoice.recipient_name or f"Invoice {invoice.invoice_number}")[:200]
+        )
+        record(
+            user,
+            customer,
+            "create",
+            {"display_name": [None, customer.display_name], "source": [None, "Square invoice"]},
+        )
+    title = (title or "").strip() or invoice.title or f"Invoice {invoice.invoice_number}"
+    job = create_job(customer=customer, title=title[:200], start=Status.INVOICED, user=user)
+    link(invoice, job, user=user)
+    return job

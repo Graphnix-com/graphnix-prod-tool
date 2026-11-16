@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}New Job From Invoice · GRAPHNIX tracker{% endblock %}
+{% block content %}
+<p class="muted" style="margin:0"><a href="{% url 'integrations:inbox' %}">Invoices</a> /</p>
+<h1>New Job From Invoice {{ invoice.invoice_number|default:"" }}</h1>
+<dl class="facts">
+  <dt>Title</dt><dd>{{ invoice.title|default:"—" }}</dd>
+  <dt>Customer</dt><dd>{{ invoice.recipient_name|default:"—" }}</dd>
+  <dt>Total</dt><dd>{{ invoice.total_cents|money:invoice.currency }}</dd>
+  <dt>Status</dt><dd>{{ invoice.status_label }}</dd>
+</dl>
+<form method="post" style="max-width:600px">
+  {% csrf_token %}
+  <p><label for="title">Job title</label><br>
+    <input type="text" id="title" name="title" maxlength="200" value="{{ invoice.title }}" placeholder="What Is Being Made" required></p>
+  <h2>Customer</h2>
+  {% if linked %}
+    <p><a href="{% url 'customers:detail' linked.pk %}">{{ linked }}</a>{% if perms.customers.view_contact_details and linked.email %} <span class="muted">{{ linked.email }}</span>{% endif %}
+      <br><span class="muted">Linked to this invoice's customer in Square.</span></p>
+  {% else %}
+    {% for c in candidates %}
+      <p><label><input type="radio" name="customer" value="{{ c.pk }}" {% if forloop.first %}checked{% endif %}>
+        {{ c }}{% if perms.customers.view_contact_details %} <span class="muted">{{ c.email|default:"No email" }} {{ c.phone }}</span>{% endif %}</label></p>
+    {% endfor %}
+    <p><label><input type="radio" name="customer" value="new" {% if not candidates %}checked{% endif %}>
+      New customer: {{ invoice.recipient_name|default:"named after the invoice" }}</label></p>
+  {% endif %}
+  <p class="muted">The job starts at Invoiced, with this invoice's payment status.</p>
+  <p><button type="submit" class="primary">Create job</button> <a href="{% url 'integrations:inbox' %}">Cancel</a></p>
+</form>
+{% endblock %}
