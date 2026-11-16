@@ -125,7 +125,7 @@ def test_filter_by_payment_status_only_for_money_roles(customer):
 def test_board_page_for_production_has_no_payment_filter(client, make_user, customer):
     make(customer, Status.INVOICED, "deposit paid", payment_status=PaymentStatus.DEPOSIT)
     client.force_login(make_user("production"))
-    page = client.get(reverse("jobs:list")).content.decode()
+    page = client.get(reverse("jobs:list") + "?all=1").content.decode()
     assert "deposit paid" in page
     assert 'name="payment"' not in page and "Deposit" not in page
 

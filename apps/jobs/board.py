@@ -26,6 +26,21 @@ LANES = [
     ("Finish", [Status.QA, Status.READY, Status.SHIPPED]),
 ]
 SIDE_LANE = ("On hold and cancelled", [Status.ON_HOLD, Status.CANCELLED])
+
+
+def lanes_for(user) -> list[str]:
+    """The lanes this person works in, shown by default: the office sees every lane;
+    Production sees Production; QA and shipping adds Finish."""
+    if user.has_perm("jobs.move_office_stages"):
+        return [name for name, _ in LANES]
+    names = []
+    if user.has_perm("jobs.move_production_stages"):
+        names.append("Production")
+    if user.has_perm("jobs.move_finish_stages"):
+        names.append("Finish")
+    return names or [name for name, _ in LANES]
+
+
 CANCELLED_SHOWN_DAYS = 30
 
 DUE_FILTERS = [
@@ -141,10 +156,18 @@ class Filters:
         return qs.distinct()
 
 
-def board(filters: Filters, *, show_side: bool, flagger: Flagger | None = None):
-    """[(lane name, [(status, label, [Card])])]"""
+def board(
+    filters: Filters,
+    *,
+    show_side: bool,
+    flagger: Flagger | None = None,
+    only: list[str] | None = None,
+):
+    """[(lane name, [(status, label, [Card])])]. `only` limits it to those lanes."""
     flagger = flagger or Flagger()
-    lanes = [*LANES, SIDE_LANE] if show_side else LANES
+    lanes = [lane for lane in LANES if only is None or lane[0] in only]
+    if show_side:
+        lanes.append(SIDE_LANE)
     statuses = [s for _, column in lanes for s in column]
     qs = base_queryset().filter(status__in=statuses)
     cutoff = flagger.on - timedelta(days=CANCELLED_SHOWN_DAYS)

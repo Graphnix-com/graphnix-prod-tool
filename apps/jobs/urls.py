@@ -18,4 +18,7 @@ urlpatterns = [
     path("<int:pk>/tasks/<int:task_pk>/delete/", views.task_delete, name="task_delete"),
     path("<int:pk>/tasks/<int:task_pk>/assign/", views.task_assign, name="task_assign"),
     path("<int:pk>/notes/", views.note_add, name="note_add"),
+    path("<int:pk>/files/", views.file_add, name="file_add"),
+    path("<int:pk>/files/<int:file_pk>/", views.file_download, name="file_download"),
+    path("<int:pk>/files/<int:file_pk>/delete/", views.file_delete, name="file_delete"),
 ]

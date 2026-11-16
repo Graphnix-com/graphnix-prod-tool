@@ -295,3 +295,42 @@ class JobItemSize(models.Model):
         if self.size in STANDARD_SIZES:
             return (0, STANDARD_SIZES.index(self.size))
         return (1, self.size)
+
+
+def _job_file_path(instance, filename: str) -> str:
+    # Unguessable and unique; the name people see is kept in `name`.
+    import uuid
+
+    from django.utils.text import get_valid_filename
+
+    return f"job_files/{instance.job_id}/{uuid.uuid4().hex}-{get_valid_filename(filename)[-80:]}"
+
+
+class JobFile(models.Model):
+    """Artwork, mock-ups, photos and PDFs on a job. Everyone who can open the job sees them,
+    Production included, so no quotes or invoices here (see apps.jobs.files)."""
+
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="files")
+    file = models.FileField(upload_to=_job_file_path, max_length=255)
+    name = models.CharField(max_length=200)
+    size = models.PositiveBigIntegerField(default=0)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    uploaded_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "job_file"
+        ordering = ["-uploaded_at", "-id"]
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def extension(self) -> str:
+        return self.name.rsplit(".", 1)[-1].lower() if "." in self.name else ""
+
+    @property
+    def is_image(self) -> bool:
+        """Shown as a thumbnail and opened in the browser (not SVG: it can carry script)."""
+        return self.extension in {"png", "jpg", "jpeg", "gif", "webp"}

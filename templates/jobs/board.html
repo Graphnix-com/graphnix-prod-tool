@@ -28,7 +28,8 @@
       </select></div>
   {% endif %}
   <div><label class="check"><input type="checkbox" name="side" value="1" {% if show_side %}checked{% endif %}> On hold and cancelled</label></div>
-  <div><button type="submit">Filter</button> {% if filters.active or show_side %}<a href="{% url 'jobs:list' %}">Clear</a>{% endif %}</div>
+  {% if limited %}<div><label class="check"><input type="checkbox" name="all" value="1" {% if show_all %}checked{% endif %} onchange="this.form.submit()"> Show all stages</label></div>{% endif %}
+  <div><button type="submit">Filter</button> {% if filters.active or show_side or show_all and limited %}<a href="{% url 'jobs:list' %}">Clear</a>{% endif %}</div>
 </form>
 <div id="board">{% include "jobs/_board.html" %}</div>
 <script>
@@ -42,7 +43,15 @@
         if (r.ok && r.redirected === false) return r.text();
       }).then(function (html) {
         if (!html) return;
+        // Keep open tiles open across the refresh.
+        var open = Array.prototype.map.call(
+          document.querySelectorAll("#board details.jobcard[open]"),
+          function (d) { return d.getAttribute("data-job"); });
         document.getElementById("board").innerHTML = html;
+        open.forEach(function (id) {
+          document.querySelectorAll('#board details.jobcard[data-job="' + id + '"]')
+            .forEach(function (d) { d.open = true; });
+        });
         document.getElementById("refreshed").textContent =
           "Updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
       }).catch(function () {});

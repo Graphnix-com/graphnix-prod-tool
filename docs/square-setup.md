@@ -46,7 +46,7 @@ included: Square signs it with every delivery.
 
 What staff need to know: **put the job's G- number in the Square invoice title.** Square
 gives the invoice its own number, so the G- number is how the tracker finds the job. An
-invoice without one waits under **Invoices to link** in the header (Admin and Manager):
+invoice without one waits under **Invoices** in the header (Admin and Manager):
 type the job number and **Link**, or **Not a job** for a sale with no production. A wrong
 match is fixed with **Unlink** in the job's Payment panel (Details tab).
 
