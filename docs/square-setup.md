@@ -77,6 +77,34 @@ docker compose exec web python manage.py import_square_customers
 Customers already linked are skipped, so it's safe to run again. After go-live, a new
 Square customer whose email matches a tracker customer links itself.
 
+## F. Real Square data on staging (optional, read only)
+
+To see real customers and invoices in staging without connecting staging to the real
+account. Add `--live --location <production location ID>` to either import, and type the
+**production access token** at the hidden prompt. The token is used for that one command
+and kept nowhere: not in `.env`, the shell history or the chat. Staging carries on with
+the sandbox afterwards.
+
+Get both from developer.squareup.com, the `GRAPHNIX tracker` app, switched to
+**Production**: **Credentials** (access token) and **Locations** (location ID).
+
+```bash
+docker compose exec web python manage.py import_square_customers --live --location LXXXX --dry-run
+docker compose exec web python manage.py import_square_customers --live --location LXXXX
+docker compose exec web python manage.py import_square_invoices --live --location LXXXX --latest 3 --dry-run
+docker compose exec web python manage.py import_square_invoices --live --location LXXXX --number 000123
+```
+
+`import_square_invoices` takes `--latest N` (20 at most), `--number <Square invoice
+number>` or `--id <invoice ID>`, each repeatable. Real invoices have no G- number, so they
+wait under **Invoices**: link each to a test job to see its payment status arrive.
+Estimates can't be imported: Square's API doesn't offer them. Type the estimate number on
+the job instead.
+
+Staging then holds real names, emails and phone numbers. Treat it like production:
+staff sign-in only, the same backups. Delete the imported records when you're done
+testing.
+
 ## When something's wrong
 
 1. The health panel names most problems.
