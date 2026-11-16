@@ -9,16 +9,48 @@
   <input type="text" name="q" value="{{ query }}" placeholder="Search Name, Company, Email Or Phone">
   <button type="submit">Search</button>
 </form>
-<table>
-  <tr><th>Name</th><th>Company</th>{% if perms.customers.view_contact_details %}<th>Email</th><th>Phone</th>{% endif %}</tr>
-  {% for c in customers %}
+{% with contacts=perms.customers.view_contact_details %}
+<table class="customers">
+  <tr><th>Name</th><th>Company</th>{% if contacts %}<th>Email</th><th>Phone</th>{% endif %}</tr>
+  {% for g in groups %}
+    {% if g.customers|length == 1 %}{% with c=g.customers.0 %}
     <tr>
       <td><a href="{% url 'customers:detail' c.pk %}">{{ c.display_name }}</a></td>
       <td>{{ c.company_name|default:"—" }}</td>
-      {% if perms.customers.view_contact_details %}<td>{{ c.email|default:"—" }}</td><td>{{ c.phone|default:"—" }}</td>{% endif %}
+      {% if contacts %}<td>{{ c.email|default:"—" }}</td><td>{{ c.phone|default:"—" }}</td>{% endif %}
     </tr>
+    {% endwith %}{% else %}
+    <tr class="same-name">
+      {% if contacts %}
+      <td>{{ g.name }}</td>
+      <td>{{ g.company|default:"—" }}</td>
+      <td colspan="2">
+        <details class="emails">
+          <summary>{{ g.customers|length }} Emails</summary>
+          <ul>
+            {% for c in g.customers %}
+            <li><a href="{% url 'customers:detail' c.pk %}">{{ c.email|default:"No email" }}</a>
+              {% if c.phone %}<span class="muted">{{ c.phone }}</span>{% endif %}
+              {% if c.company_name and not g.company %}<span class="muted">{{ c.company_name }}</span>{% endif %}</li>
+            {% endfor %}
+          </ul>
+        </details>
+      </td>
+      {% else %}
+      <td>
+        <details class="emails">
+          <summary>{{ g.name }} <span class="muted">· {{ g.customers|length }} Records</span></summary>
+          <ul>{% for c in g.customers %}<li><a href="{% url 'customers:detail' c.pk %}">Added {{ c.created_at|date:"j M Y" }}</a></li>{% endfor %}</ul>
+        </details>
+      </td>
+      <td>{{ g.company|default:"—" }}</td>
+      {% endif %}
+    </tr>
+    {% endif %}
   {% empty %}
     <tr><td colspan="4" class="muted">No customers{% if query %} match “{{ query }}”{% endif %}.</td></tr>
   {% endfor %}
 </table>
+{% endwith %}
+{% if more %}<p class="muted">Showing the first 200 names. Search to find others.</p>{% endif %}
 {% endblock %}

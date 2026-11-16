@@ -1,3 +1,5 @@
+from collections import Counter
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import Q
@@ -20,11 +22,34 @@ def customer_list(request):
             | Q(email__icontains=query)
             | Q(phone__icontains=query)
         )
+    groups = by_name(customers)
     return render(
         request,
         "customers/customer_list.html",
-        {"customers": customers[:200], "query": query},
+        {"groups": groups[:LIST_LIMIT], "more": len(groups) > LIST_LIMIT, "query": query},
     )
+
+
+LIST_LIMIT = 200
+
+
+def by_name(customers) -> list[dict]:
+    """One entry per name: people with the same name (ignoring case and spacing) but
+    separate records, such as one person under two emails, share a row. Their records are
+    sorted by email, A to Z; any without an email come last."""
+    groups: dict[str, dict] = {}
+    for c in customers:
+        key = " ".join(c.display_name.split()).casefold()
+        group = groups.setdefault(key, {"customers": []})
+        group["customers"].append(c)
+    for group in groups.values():
+        # Show the spelling most of the records use; on a tie, the one with capitals.
+        spellings = Counter(" ".join(c.display_name.split()) for c in group["customers"])
+        group["name"] = min(spellings, key=lambda n: (-spellings[n], n))
+        group["customers"].sort(key=lambda c: (not c.email, c.email.casefold(), c.pk))
+        companies = {c.company_name for c in group["customers"]}
+        group["company"] = companies.pop() if len(companies) == 1 else ""
+    return [groups[key] for key in sorted(groups)]  # A to Z, ignoring capitals
 
 
 @login_required
