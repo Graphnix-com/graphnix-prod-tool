@@ -217,13 +217,25 @@ def square_invoiced(job: Job, *, note: str, event_id: str = "") -> Job:
 
 
 def _system_job(
-    *, customer, title: str, status: str, note: str, source="", fulfillment="", event_id=""
+    *,
+    customer,
+    title: str,
+    status: str,
+    note: str,
+    source="",
+    fulfillment="",
+    event_id="",
+    square_number="",
 ) -> Job:
     """A job made by the tracker itself from something Square reported, already at
-    `status`, with Square as the source of its first history row."""
+    `status`, with Square as the source of its first history row. `square_number` becomes
+    the job's number unless another job already has it."""
     now = timezone.now()
+    if square_number and Job.objects.filter(square_number=square_number).exists():
+        square_number = ""
     job = Job(
         customer=customer,
+        square_number=square_number,
         title=title[:200],
         status=status,
         status_changed_at=now,
@@ -249,7 +261,13 @@ def _system_job(
 
 @transaction.atomic
 def store_order_job(
-    *, customer, title: str, note: str, fulfillment: str = "", event_id: str = ""
+    *,
+    customer,
+    title: str,
+    note: str,
+    fulfillment: str = "",
+    event_id: str = "",
+    number: str = "",
 ) -> Job:
     """A job for an online store order: paid at checkout, with the store's design already
     approved, so it starts at Mock-Up Approved and its due date runs from now."""
@@ -263,6 +281,7 @@ def store_order_job(
         source=Channel.ONLINE_STORE,
         fulfillment=fulfillment,
         event_id=event_id,
+        square_number=number,
     )
 
 

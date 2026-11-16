@@ -143,7 +143,8 @@ def test_a_store_order_becomes_a_job_at_mockup_approved(square_on):
     assert job.status == Status.MOCKUP_APPROVED and job.source == "online_store"
     assert job.fulfillment_method == "ship"
     assert job.due_date is not None and job.mockup_approved_at is not None
-    assert job.title == "Store order 1001: Team hoodie + 1 more"
+    assert job.title == "Store: Team hoodie + 1 more"  # two products; colours don't count
+    assert job.square_number == "1001" and job.display_number == "1001"
     assert job.payment_status == PaymentStatus.PAID and job.amount_paid_cents == 9000
     history = job.history.get()
     assert history.source == JobStatusHistory.Source.SQUARE and "1001" in history.note
@@ -280,3 +281,19 @@ def test_production_sees_the_job_but_no_money(client, make_user, square_on):
     html = client.get(reverse("jobs:detail", args=[job.pk]) + "?tab=details").content.decode()
     assert "$90.00" not in html and "Team hoodie" in html
     assert not any("Payment" in e.title for e in timeline.build(job))
+
+
+def test_a_long_product_name_is_cut_at_a_word():
+    name = "SPECIAL. Youth and Unisex Hoodie. Tackle twill and embroidery full front. Free toque."
+    items = [{"description": name}, {"description": name}]
+    title = orders.title_for(items, limit=40)
+    assert title == "Store: SPECIAL. Youth and Unisex Hoodie…" and "more" not in title
+
+
+def test_an_order_number_already_on_a_job_isnt_reused(square_on, job_at):
+    other = job_at(Status.QUOTING)
+    other.square_number = "1001"
+    other.save()
+    deliver(square_on, order())
+    job = Job.objects.exclude(pk=other.pk).get()
+    assert job.square_number == "" and job.display_number.startswith("G-")
