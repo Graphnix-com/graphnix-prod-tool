@@ -29,6 +29,8 @@ PATH = [
 ]
 
 START_STATUSES = {Status.QUOTING, Status.INVOICED}
+# A sent Square invoice moves a job from these to Invoiced (FR-06).
+BEFORE_INVOICED = {Status.QUOTING, Status.QUOTE_SENT, Status.QUOTE_APPROVED}
 
 OFFICE = "jobs.move_office_stages"
 PRODUCTION = "jobs.move_production_stages"

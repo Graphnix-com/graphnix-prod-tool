@@ -14,6 +14,7 @@ urlpatterns = [
     path("customers/", include("apps.customers.urls")),
     path("inquiries/", include("apps.sales.urls")),
     path("jobs/", include("apps.jobs.urls")),
+    path("integrations/", include("apps.integrations.urls")),
     path("", job_views.home, name="home"),
     path("", include("apps.core.urls")),
 ]

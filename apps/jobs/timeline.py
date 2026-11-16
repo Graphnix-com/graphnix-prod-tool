@@ -24,6 +24,9 @@ _NOUN = {"jobs.job": "Job details", "jobs.jobitem": "Item", "production.producti
 _VERB = {"create": "added", "update": "changed", "delete": "removed"}
 # Context keys recorded with an edit, not fields that changed.
 _CONTEXT = {"line", "task", "description"}
+# Money from Square: only for people who can see money (NFR-02).
+_MONEY = {"integrations.squareinvoice"}
+_MONEY_ACTIONS = {"payment"}
 
 
 @dataclass
@@ -79,7 +82,23 @@ def _edit_entry(entry: AuditLog) -> Entry:
     return Entry(entry.at, KIND_EDIT, who, title, "; ".join(details))
 
 
-def build(job: Job) -> list[Entry]:
+def _square_entry(entry: AuditLog) -> Entry:
+    changes = entry.changes or {}
+    number = (changes.get("invoice") or [None, None])[1] or ""
+    label = f"Square invoice {number}".strip()
+    if entry.action == "link":
+        return Entry(entry.at, KIND_EDIT, "Square", f"{label} linked", "")
+    details = [
+        f"{name.capitalize()}: {_show(old)} → {_show(new)}"
+        for name, (old, new) in changes.items()
+        if name in ("payment", "paid", "total")
+    ]
+    who = str(entry.actor) if entry.actor else "Square"
+    return Entry(entry.at, KIND_EDIT, who, f"Payment ({label})", "; ".join(details))
+
+
+def build(job: Job, *, show_money: bool = False) -> list[Entry]:
+    """The job's timeline. Payments and invoices only with `show_money`."""
     entries = []
     for row in job.history.select_related("changed_by"):
         if row.from_status:
@@ -93,6 +112,10 @@ def build(job: Job) -> list[Entry]:
         entries.append(Entry(note.created_at, KIND_NOTE, who, "Note", note.body))
     for entry in AuditLog.objects.filter(job_id=job.pk).select_related("actor"):
         if (entry.entity_type, entry.action) in _SKIP or entry.entity_type == "jobs.jobnote":
+            continue
+        if entry.entity_type in _MONEY or entry.action in _MONEY_ACTIONS:
+            if show_money:
+                entries.append(_square_entry(entry))
             continue
         entries.append(_edit_entry(entry))
     entries.sort(key=lambda e: e.at, reverse=True)
