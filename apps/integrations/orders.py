@@ -217,6 +217,17 @@ def _customer(order: dict, square_customer: dict | None):
     return customer
 
 
+def title_for(items: list[dict], limit: int = 90) -> str:
+    """ "Store: <first product>", "+ N more" for other products (not other colours); long
+    product names cut at a word."""
+    names = list(dict.fromkeys(i["description"] for i in items)) or ["items"]
+    first = names[0]
+    if len(first) > limit:
+        first = first[:limit].rsplit(" ", 1)[0].rstrip(".,;:") + "…"
+    more = f" + {len(names) - 1} more" if len(names) > 1 else ""
+    return f"Store: {first}{more}"
+
+
 # Square's fulfilment types as the job's fulfilment method.
 _FULFILMENT = {"SHIPMENT": "ship", "PICKUP": "pickup", "DELIVERY": "deliver"}
 
@@ -226,14 +237,13 @@ def _make_job(stored: SquareOrder, order: dict, square_customer, event_id: str):
     from apps.jobs.models import JobItem, JobItemSize
 
     items = items_from(order)
-    first = items[0]["description"] if items else "items"
-    more = f" + {len(items) - 1} more" if len(items) > 1 else ""
     job = job_services.store_order_job(
         customer=_customer(order, square_customer),
-        title=f"Store order {stored.number}: {first}{more}",
+        title=title_for(items),
         note=f"Online store order {stored.number} ({stored.source_name})",
         fulfillment=_FULFILMENT.get(stored.fulfillment, ""),
         event_id=event_id,
+        number=stored.reference,
     )
     for item in items:
         row = JobItem.objects.create(
