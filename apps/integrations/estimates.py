@@ -127,11 +127,50 @@ def _customers(parsed: dict):
     return list(Customer.objects.filter(email__iexact=parsed["customer_email"])[:5])
 
 
+def _quoting_jobs(parsed: dict) -> list:
+    """Jobs waiting at Quoting (with no estimate yet) that the estimate's customer could be
+    the customer of: by email first (the customer's, a contact's, or the request's the job
+    came from), else by name. Two or more found means it isn't clear which."""
+    from django.db.models import Q
+
+    from apps.jobs.models import Job, Status
+
+    waiting = Job.objects.filter(status=Status.QUOTING, square_number="", square_estimate_ref="")
+    email = (parsed["customer_email"] or "").strip()
+    if email:
+        found = list(
+            waiting.filter(
+                Q(customer__email__iexact=email)
+                | Q(customer__contacts__email__iexact=email)
+                | Q(inquiry__from_email__iexact=email)
+            ).distinct()[:2]
+        )
+        if found:
+            return found
+    name = " ".join((parsed["customer_name"] or "").split())
+    if not name:
+        return []
+    return list(
+        waiting.filter(
+            Q(customer__display_name__iexact=name)
+            | Q(customer__company_name__iexact=name)
+            | Q(customer__contacts__full_name__iexact=name)
+            | Q(inquiry__from_name__iexact=name)
+        ).distinct()[:2]
+    )
+
+
+def title_for(name: str, number: str) -> str:
+    """A job made for an estimate is named for its customer ("000685 · Pat Doe" on the
+    board); the estimate number only when Square gave no name."""
+    return (" ".join((name or "").split()) or f"Estimate {number}")[:200]
+
+
 def _job_for(estimate: SquareEstimate, parsed: dict):
     """(job, how) for a newly sent estimate, or (None, "") when it should wait."""
     from apps.customers.models import Customer
     from apps.jobs import services
-    from apps.jobs.models import Job, Status
+    from apps.jobs.models import Job
 
     number = estimate.number
     by_number = list(
@@ -141,11 +180,7 @@ def _job_for(estimate: SquareEstimate, parsed: dict):
         return by_number[0], SquareEstimate.Match.NUMBER
 
     customers = _customers(parsed)
-    quoting = list(
-        Job.objects.filter(
-            customer__in=customers, status=Status.QUOTING, square_number="", square_estimate_ref=""
-        )[:2]
-    )
+    quoting = _quoting_jobs(parsed)
     if len(quoting) == 1:
         return quoting[0], SquareEstimate.Match.CUSTOMER
     if quoting or len(customers) > 1:
@@ -162,7 +197,9 @@ def _job_for(estimate: SquareEstimate, parsed: dict):
     else:
         return None, ""
     job = services.square_estimate_job(
-        customer=customer, title=f"Estimate {number}", note=f"Square estimate {number} sent"
+        customer=customer,
+        title=title_for(parsed["customer_name"] or customer.display_name, number),
+        note=f"Square estimate {number} sent",
     )
     return job, SquareEstimate.Match.CREATED
 
@@ -399,7 +436,7 @@ def create_job(estimate: SquareEstimate, *, user, customer, title: str):
         raise PermissionDenied("This estimate is already on a job.")
     job = services.create_job(
         customer=customer,
-        title=(title or f"Estimate {estimate.number}")[:200],
+        title=(title or title_for(estimate.customer_name, estimate.number))[:200],
         start=services.Status.QUOTING,
         user=user,
     )

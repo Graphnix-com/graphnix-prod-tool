@@ -12,7 +12,7 @@
 <form method="post" style="max-width:600px">
   {% csrf_token %}
   <p><label for="title">Job title</label><br>
-    <input type="text" id="title" name="title" maxlength="200" value="Estimate {{ estimate.number }}" placeholder="What Is Being Made" required></p>
+    <input type="text" id="title" name="title" maxlength="200" value="{{ title }}" placeholder="What Is Being Made" required></p>
   <h2>Customer</h2>
   {% for c in candidates %}
     <p><label><input type="radio" name="customer" value="{{ c.pk }}" {% if forloop.first %}checked{% endif %}>

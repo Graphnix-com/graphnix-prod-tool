@@ -142,10 +142,16 @@ accepted an estimate! (#000685)"). The tracker reads those two kinds of email fr
 addresses, and keeps only what it reads from them, never the email itself.
 
 - **Sent:** the job takes the estimate number as its number (shown instead of the G-
-  number) and moves to **Quote Sent**. The job is the one already carrying that estimate
-  number; else the customer's one job at Quoting; else, if the customer has none, a new
-  job (and a new customer if the email is new). If it's less clear than that, the estimate
-  waits under **Invoices › Estimates** to be linked, made into a job, or set aside.
+  number) and moves to **Quote Sent**. The job is, in order:
+  1. the one already carrying that estimate number;
+  2. the one job waiting at **Quoting** (with no estimate yet) for that customer, found by
+     email (the customer's, one of their contacts', or the website request's the job came
+     from), else by name;
+  3. else a new job named for the customer ("000685 · Pat Doe"), and a new customer if
+     the email is new.
+
+  If two Quoting jobs fit, the estimate waits under **Invoices › Estimates** to be linked,
+  made into a job, or set aside.
 - **Accepted:** the job moves to **Invoiced** (there's no separate Quote Approved stage:
   Square turns an accepted estimate into an invoice at once). That invoice links to the
   job by customer and total and brings its payment status.

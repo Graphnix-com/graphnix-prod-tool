@@ -3,7 +3,7 @@ from django import forms
 from apps.jobs.models import Status
 from apps.jobs.money import no_amounts
 
-from .models import Inquiry
+from .models import Channel, Inquiry
 
 
 class InquiryForm(forms.ModelForm):
@@ -45,3 +45,10 @@ class ConvertForm(forms.Form):
         label="Square job number",
         help_text="If Square has made one already. You can add it later.",
     )
+
+    def __init__(self, *args, inquiry=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if inquiry is not None and inquiry.channel == Channel.WEBSITE:
+            # A website enquiry has had no quote yet: it always starts at Quoting.
+            self.fields["start"].choices = self.START_CHOICES[:1]
+            self.fields["start"].help_text = "Website requests start at Quoting."

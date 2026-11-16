@@ -10,7 +10,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.services import record
-from apps.sales.models import Inquiry
+from apps.sales.models import Channel, Inquiry
 
 from . import flow, gates, workdays
 from .flow import InvalidMove
@@ -148,6 +148,8 @@ def convert_inquiry(
     customer = customer or inquiry.customer
     if customer is None:
         raise ValidationError({"customer": "Pick or create the customer first."})
+    if inquiry.channel == Channel.WEBSITE:
+        start = Status.QUOTING  # a website enquiry has had no quote yet
     job = create_job(
         customer=customer,
         title=title or inquiry.subject or f"Request from {customer}",

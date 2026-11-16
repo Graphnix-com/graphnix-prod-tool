@@ -187,3 +187,28 @@ def test_customer_search(client, manager):
     page = logged_in(client, manager).get(reverse("customers:list") + "?q=soccer")
     assert "Acme Soccer Club" in page.content.decode()
     assert "Bow River Bakery" not in page.content.decode()
+
+
+def test_a_website_request_always_becomes_a_job_at_quoting(client, manager, customer):
+    from apps.jobs import services
+
+    inquiry = Inquiry.objects.create(channel=Channel.WEBSITE, customer=customer, subject="Hoodies")
+    c = logged_in(client, manager)
+    page = c.get(reverse("sales:detail", args=[inquiry.pk])).content.decode()
+    assert "Quote first" in page and "Straight to invoice" not in page
+    c.post(
+        reverse("sales:convert", args=[inquiry.pk]),
+        {"start": Status.QUOTING, "title": "50 hoodies"},
+    )
+    job = Job.objects.get()
+    assert (job.status, job.source) == (Status.QUOTING, Channel.WEBSITE)
+
+    other = Inquiry.objects.create(channel=Channel.WEBSITE, customer=customer, subject="Caps")
+    job = services.convert_inquiry(other, user=manager, start=Status.INVOICED, title="Caps")
+    assert job.status == Status.QUOTING  # enforced, not just hidden
+
+
+def test_other_requests_can_still_go_straight_to_invoice(client, manager, customer):
+    inquiry = Inquiry.objects.create(channel=Channel.PHONE, customer=customer, subject="Tees")
+    page = logged_in(client, manager).get(reverse("sales:detail", args=[inquiry.pk]))
+    assert "Straight to invoice" in page.content.decode()

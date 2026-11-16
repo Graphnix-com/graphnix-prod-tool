@@ -13,7 +13,9 @@ a **request** for each one, under **Requests** in the header:
   the request, as for a phoned-in request.
 
 The header shows how many requests are still **New**. From there it's the usual flow: set
-the customer, then **Convert to job** or **Decline**.
+the customer, then **Convert to job** (always at **Quoting**: a website enquiry has had no
+quote yet) or **Decline**. When the Square estimate for it is sent, that job moves to Quote
+Sent by itself.
 
 Only that sender's form emails are opened. Other mail in info@ is listed by sender only and
 never opened. Each email makes one request, however often it's read.

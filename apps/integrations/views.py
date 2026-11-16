@@ -232,7 +232,13 @@ def estimate_new_job(request, pk):
     return render(
         request,
         "integrations/estimate_new_job.html",
-        {"estimate": estimate, "candidates": candidates},
+        {
+            "estimate": estimate,
+            "candidates": candidates,
+            "title": estimates.title_for(
+                estimate.customer_name or estimate.customer_email, estimate.number
+            ),
+        },
     )
 
 

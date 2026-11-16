@@ -113,6 +113,7 @@ def test_a_new_customer_gets_a_new_job_at_quote_sent():
     assert job.square_number == "000685" and job.display_number == "000685"
     assert job.square_estimate_ref == "000685"
     assert job.customer.display_name == "Josh Wier" and job.customer.email == "josh@example.com"
+    assert job.title == "Josh Wier"  # the board reads "000685 · Josh Wier"
     assert job.history.get().source == JobStatusHistory.Source.SQUARE
     assert SquareEstimate.objects.get().match_method == SquareEstimate.Match.CREATED
 
@@ -126,6 +127,65 @@ def test_the_customers_one_quoting_job_takes_the_estimate(josh, job_at):
     assert job.status == Status.QUOTE_SENT and job.square_number == "000685"
     assert Job.objects.count() == 1
     assert SquareEstimate.objects.get().match_method == SquareEstimate.Match.CUSTOMER
+
+
+def quoting_job(customer, **fields):
+    return Job.objects.create(customer=customer, title="Team tees", status=Status.QUOTING, **fields)
+
+
+def test_a_quoting_job_from_a_website_request_is_found_by_the_requests_email():
+    from apps.sales.models import Channel, Inquiry
+
+    # The request gave josh@example.com; the customer was saved with another address.
+    customer = Customer.objects.create(display_name="J. Wier", email="josh@work.example")
+    request = Inquiry.objects.create(
+        channel=Channel.WEBSITE, from_name="Josh Wier", from_email="Josh@Example.com"
+    )
+    job = quoting_job(customer, inquiry=request)
+    estimates.handle(message())
+    job.refresh_from_db()
+    assert job.status == Status.QUOTE_SENT and job.square_number == "000685"
+    assert Job.objects.count() == 1 and Customer.objects.count() == 1
+
+
+def test_a_quoting_job_is_found_by_a_contacts_email():
+    company = Customer.objects.create(display_name="Wier Hockey", company_name="Wier Hockey")
+    company.contacts.create(full_name="Josh Wier", email="josh@example.com")
+    job = quoting_job(company)
+    estimates.handle(message())
+    job.refresh_from_db()
+    assert job.status == Status.QUOTE_SENT and Job.objects.count() == 1
+
+
+def test_a_quoting_job_is_found_by_name_when_no_email_matches():
+    job = quoting_job(Customer.objects.create(display_name="josh wier"))
+    estimates.handle(message())
+    job.refresh_from_db()
+    assert job.status == Status.QUOTE_SENT and Job.objects.count() == 1
+
+
+def test_an_email_match_wins_over_a_name_match(josh):
+    by_email = quoting_job(josh)
+    quoting_job(Customer.objects.create(display_name="Josh Wier"))  # same name, other person
+    estimates.handle(message())
+    by_email.refresh_from_db()
+    assert by_email.status == Status.QUOTE_SENT
+
+
+def test_two_quoting_jobs_with_the_name_wait():
+    quoting_job(Customer.objects.create(display_name="Josh Wier"))
+    quoting_job(Customer.objects.create(display_name="Josh Wier"))
+    estimates.handle(message(text=body(email="nobody@example.com")))
+    assert SquareEstimate.objects.get().job is None
+    assert not Job.objects.filter(status=Status.QUOTE_SENT).exists()
+
+
+def test_jobs_past_quoting_or_with_an_estimate_arent_candidates(josh):
+    Job.objects.create(customer=josh, title="Old", status=Status.INVOICED)
+    quoting_job(josh, square_estimate_ref="000600")
+    estimates.handle(message())
+    new = Job.objects.get(square_number="000685")
+    assert new.title == "Josh Wier" and new.status == Status.QUOTE_SENT
 
 
 def test_a_number_typed_on_the_job_matches_first(job_at):
@@ -339,7 +399,7 @@ def test_create_a_job_from_a_waiting_estimate(client, manager, josh, job_at):
     estimate = SquareEstimate.objects.get()
     client.force_login(manager)
     url = reverse("integrations:estimate_new_job", args=[estimate.pk])
-    assert "Josh Wier" in client.get(url).content.decode()
+    assert 'value="Josh Wier"' in client.get(url).content.decode()  # the title offered
     client.post(url, {"title": "Embroidered caps", "customer": josh.pk})
     job = Job.objects.get(square_number="000685")
     assert job.status == Status.QUOTE_SENT and job.title == "Embroidered caps"
@@ -370,3 +430,19 @@ def test_production_cant_handle_estimates(client, make_user, josh, job_at):
     )
     client.post(reverse("integrations:estimate_set_aside", args=[estimate.pk]))
     assert estimates.waiting().exists()
+
+
+def test_older_estimate_jobs_are_renamed_for_their_customer(josh):
+    from importlib import import_module
+
+    from django.apps import apps
+
+    rename = import_module("apps.integrations.migrations.0006_estimate_jobs_named_for_customer")
+    old = Job.objects.create(customer=josh, title="Estimate 000685", square_number="000685")
+    SquareEstimate.objects.create(number="000685", customer_name="Josh Wier", job=old)
+    kept = Job.objects.create(customer=josh, title="Team caps", square_number="000686")
+    SquareEstimate.objects.create(number="000686", customer_name="Josh Wier", job=kept)
+    rename.forward(apps, None)
+    old.refresh_from_db()
+    kept.refresh_from_db()
+    assert old.title == "Josh Wier" and kept.title == "Team caps"
