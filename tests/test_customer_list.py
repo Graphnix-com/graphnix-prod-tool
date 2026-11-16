@@ -33,6 +33,10 @@ def test_same_name_is_one_group_sorted_by_email(sams, customer):
     assert emails == ["Amy@example.com", "mid@example.com", "zed@example.com", ""]
 
 
+def test_the_name_shown_is_the_usual_spelling(sams):
+    assert by_name(Customer.objects.all())[0]["name"] == "Sam Lee"
+
+
 def test_the_list_shows_the_name_once_with_an_email_dropdown(client, manager, sams, customer):
     html = page(client, manager)
     row = html.split('class="same-name"')[1].split("</tr>")[0]

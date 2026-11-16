@@ -1,3 +1,5 @@
+from collections import Counter
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db.models import Q
@@ -38,13 +40,16 @@ def by_name(customers) -> list[dict]:
     groups: dict[str, dict] = {}
     for c in customers:
         key = " ".join(c.display_name.split()).casefold()
-        group = groups.setdefault(key, {"name": c.display_name, "customers": []})
+        group = groups.setdefault(key, {"customers": []})
         group["customers"].append(c)
     for group in groups.values():
+        # Show the spelling most of the records use; on a tie, the one with capitals.
+        spellings = Counter(" ".join(c.display_name.split()) for c in group["customers"])
+        group["name"] = min(spellings, key=lambda n: (-spellings[n], n))
         group["customers"].sort(key=lambda c: (not c.email, c.email.casefold(), c.pk))
         companies = {c.company_name for c in group["customers"]}
         group["company"] = companies.pop() if len(companies) == 1 else ""
-    return list(groups.values())
+    return [groups[key] for key in sorted(groups)]  # A to Z, ignoring capitals
 
 
 @login_required
