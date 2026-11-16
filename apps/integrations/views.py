@@ -15,9 +15,9 @@ from apps.accounts.models import AppSetting
 from apps.audit.services import record
 from apps.jobs import board, gates
 
-from . import linking, square, tasks
+from . import estimates, linking, square, tasks
 from .forms import PaymentGatesForm
-from .models import SquareInvoice, WebhookEvent
+from .models import SquareEstimate, SquareInvoice, WebhookEvent
 
 log = logging.getLogger(__name__)
 
@@ -62,7 +62,11 @@ def square_webhook(request):
 @permission_required(linking.PERMISSION, raise_exception=True)
 def inbox(request):
     invoices = linking.waiting().order_by("-square_updated_at", "-id")
-    return render(request, "integrations/inbox.html", {"invoices": invoices})
+    return render(
+        request,
+        "integrations/inbox.html",
+        {"invoices": invoices, "estimates": estimates.waiting()},
+    )
 
 
 def _back(request, invoice):
@@ -155,6 +159,93 @@ def invoice_set_aside(request, pk):
         messages.error(request, str(exc))
     else:
         messages.success(request, f"Invoice {invoice.invoice_number} set aside: not a job.")
+    return redirect("integrations:inbox")
+
+
+# --- Square estimates waiting to be linked ----------------------------------------
+
+
+@login_required
+@require_POST
+def estimate_link(request, pk):
+    estimate = get_object_or_404(SquareEstimate, pk=pk)
+    number = request.POST.get("job_number", "")
+    job = board.exact_number(number)
+    if job is None:
+        messages.error(request, f"No single job has the number “{number.strip()}”.")
+        return redirect("integrations:inbox")
+    try:
+        estimates.link(estimate, job, user=request.user)
+    except PermissionDenied as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, f"Estimate {estimate.number} is now on {job.display_number}.")
+    return redirect("integrations:inbox")
+
+
+@login_required
+def estimate_new_job(request, pk):
+    """Create a job for an estimate: confirm the title and the customer."""
+    from apps.customers.models import Customer
+
+    estimate = get_object_or_404(SquareEstimate, pk=pk)
+    if not (request.user.has_perm(linking.PERMISSION) and request.user.has_perm("jobs.add_job")):
+        raise PermissionDenied
+    candidates = list(
+        Customer.objects.filter(email__iexact=estimate.customer_email)
+        if estimate.customer_email
+        else Customer.objects.none()
+    ) or list(Customer.objects.filter(display_name__iexact=estimate.customer_name or "-"))
+    if request.method == "POST":
+        choice = request.POST.get("customer", "new")
+        customer = next((c for c in candidates if str(c.pk) == choice), None)
+        if customer is None and choice != "new":
+            messages.error(request, "Pick one of the customers listed, or a new one.")
+            return redirect("integrations:estimate_new_job", pk=estimate.pk)
+        if customer is None:
+            if not request.user.has_perm("customers.add_customer"):
+                raise PermissionDenied
+            customer = Customer.objects.create(
+                display_name=(estimate.customer_name or estimate.customer_email or "New")[:200],
+                email=estimate.customer_email,
+            )
+            record(
+                request.user,
+                customer,
+                "create",
+                {"source": [None, f"Square estimate {estimate.number}"]},
+            )
+        try:
+            job = estimates.create_job(
+                estimate,
+                user=request.user,
+                customer=customer,
+                title=request.POST.get("title", ""),
+            )
+        except PermissionDenied as exc:
+            messages.error(request, str(exc))
+            return redirect("integrations:inbox")
+        messages.success(
+            request, f"Job {job.display_number} created from estimate {estimate.number}."
+        )
+        return redirect("jobs:detail", pk=job.pk)
+    return render(
+        request,
+        "integrations/estimate_new_job.html",
+        {"estimate": estimate, "candidates": candidates},
+    )
+
+
+@login_required
+@require_POST
+def estimate_set_aside(request, pk):
+    estimate = get_object_or_404(SquareEstimate, pk=pk)
+    try:
+        estimates.set_aside(estimate, user=request.user)
+    except PermissionDenied as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, f"Estimate {estimate.number} set aside: not a job.")
     return redirect("integrations:inbox")
 
 

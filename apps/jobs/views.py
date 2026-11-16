@@ -49,6 +49,8 @@ def home(request):
                 status__in=[Inquiry.Status.NEW, Inquiry.Status.IN_REVIEW]
             ).count(),
             **board.money_summary(),
+            "follow_ups": board.quote_follow_ups(flagger),
+            "follow_up_days": board.follow_up_days(),
         },
     )
 

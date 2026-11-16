@@ -20,3 +20,13 @@ def square_nightly_check(timestamp: int) -> None:
     from . import nightly
 
     nightly.run()
+
+
+# Square's estimate emails (its API has no estimates): every 5 minutes, when set up.
+@app.periodic(cron="*/5 * * * *")
+@app.task(queue="default")
+def check_estimate_mail(timestamp: int) -> None:
+    from . import estimates
+
+    if estimates.enabled():
+        estimates.check_mail()

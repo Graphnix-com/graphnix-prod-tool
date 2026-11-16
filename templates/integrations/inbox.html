@@ -3,7 +3,7 @@
 {% block title %}Invoices · GRAPHNIX tracker{% endblock %}
 {% block content %}
 <h1>Invoices</h1>
-<p class="sub">Square invoices to link: these matched no job. An invoice links itself when its title has the job's G- number; link these to a job, create a job from one, or set aside a sale with no production.</p>
+<p class="sub">Square invoices that matched no job. Link each to its job, create a job from one, or set aside a sale with no production.</p>
 <table>
   <tr><th>Invoice</th><th>Title</th><th>Customer</th><th>Total</th><th>Status</th><th>Updated</th><th>Link To Job</th><th></th></tr>
   {% for inv in invoices %}
@@ -30,6 +30,35 @@
     </tr>
   {% empty %}
     <tr><td colspan="8" class="muted">Nothing to link.</td></tr>
+  {% endfor %}
+</table>
+<h2 id="estimates" style="margin-top:28px">Estimates</h2>
+<p class="sub">Square estimates read from Square's emails that matched no job: the customer has several jobs at Quoting, or more than one customer has that email. Link each to its job, create a job for it, or set it aside.</p>
+<table>
+  <tr><th>Estimate</th><th>Customer</th><th>Total</th><th>Status</th><th>Sent</th><th>Link To Job</th><th></th></tr>
+  {% for est in estimates %}
+    <tr>
+      <td>{{ est.number }}</td>
+      <td>{{ est.customer_name|default:"—" }}{% if perms.customers.view_contact_details and est.customer_email %}<div class="muted" style="font-size:12px">{{ est.customer_email }}</div>{% endif %}</td>
+      <td>{{ est.total_cents|money:est.currency }}</td>
+      <td>{{ est.state }}</td>
+      <td>{{ est.sent_at|date:"j M Y"|default:"—" }}</td>
+      <td>
+        <form method="post" action="{% url 'integrations:estimate_link' est.pk %}" class="inline">
+          {% csrf_token %}
+          <input type="text" name="job_number" placeholder="Job No." aria-label="Job number for estimate {{ est.number }}" required style="width:110px">
+          <button type="submit">Link</button>
+        </form>
+      </td>
+      <td style="white-space:nowrap">
+        {% if perms.jobs.add_job %}<a class="button" href="{% url 'integrations:estimate_new_job' est.pk %}">Create job</a>{% endif %}
+        <form method="post" action="{% url 'integrations:estimate_set_aside' est.pk %}" class="inline">
+          {% csrf_token %}<button type="submit">Not a job</button>
+        </form>
+      </td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="7" class="muted">Nothing to link.</td></tr>
   {% endfor %}
 </table>
 {% endblock %}

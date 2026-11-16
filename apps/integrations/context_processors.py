@@ -7,6 +7,12 @@ def square_inbox(request):
         or not user.has_perm("integrations.link_square_invoice")
     ):
         return {}
+    from . import estimates
     from .linking import waiting
 
-    return {"invoices_to_link": waiting().count()}
+    invoices, quotes = waiting().count(), estimates.waiting().count()
+    return {
+        "invoices_to_link": invoices,
+        "estimates_to_link": quotes,
+        "square_to_link": invoices + quotes,
+    }

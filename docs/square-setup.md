@@ -106,6 +106,51 @@ The webhook subscription needs `order.created` and `order.updated` (section A). 
 check also reads store orders updated in the last 3 days, so a missed webhook still makes
 its job.
 
+## Estimates (from Square's emails)
+
+Square's API has no estimates. Square does email the business when an estimate is **sent**
+("A new estimate was sent to Pat Doe (#000685)") and when the customer **accepts** it ("You
+accepted an estimate! (#000685)"). The tracker reads those two kinds of email from
+`info@graphnix.com` every 5 minutes. It opens only mail from Square's two sending
+addresses, and keeps only what it reads from them, never the email itself.
+
+- **Sent:** the job takes the estimate number as its number (shown instead of the G-
+  number) and moves to **Quote Sent**. The job is the one already carrying that estimate
+  number; else the customer's one job at Quoting; else, if the customer has none, a new
+  job (and a new customer if the email is new). If it's less clear than that, the estimate
+  waits under **Invoices › Estimates** to be linked, made into a job, or set aside.
+- **Accepted:** the job moves to **Quote Approved**. Square turns an accepted estimate
+  into an invoice at once; that invoice links to the job by customer and total, and the job
+  moves to Invoiced as usual.
+- **Follow up:** quotes sent 7 or more days ago with no answer are listed on Home, in the
+  Quotes panel. Change the 7 with the app setting `quote_follow_up_days` (Admin › App
+  settings).
+
+### Setting it up
+
+1. **Get Square's emails into info@.** They go to Square's account owners (Jenn and Nick).
+   In one of their Outlooks, add a rule: from `invoicing@messaging.squareup.com` or
+   `messenger@messaging.squareup.com`, with `estimate` in the subject, **Redirect to**
+   `info@graphnix.com`. Use *Redirect*, not *Forward*: a forwarded email shows the owner as
+   the sender, and the tracker won't recognise it.
+2. **Let the tracker read info@** (once per tenant). In Exchange Online PowerShell, add
+   the read role to the scope that already limits sending (server setup, section 9):
+   ```powershell
+   New-ManagementRoleAssignment -App <client id> -Role "Application Mail.Read" -CustomResourceScope "Graphnix tracker mailboxes"
+   Test-ServicePrincipalAuthorization -Identity <client id> -Resource info@graphnix.com
+   ```
+   Don't add `Mail.Read` under API permissions in Entra: that grant covers every mailbox.
+3. **Each server's `.env`:** `ESTIMATE_MAILBOX=info@graphnix.com`, then restart `web` and
+   `worker`. Only one server should read estimates for real: staging and production would
+   otherwise both act on the same emails. Leave it off on staging once production is live.
+4. **Try it:** send an estimate to yourself, then run (or wait 5 minutes):
+   ```bash
+   docker compose exec web python manage.py check_estimate_mail
+   ```
+   The job appears at Quote Sent with the estimate number. `--days 30` reads further back
+   (each email is handled once, so it's safe to repeat). The health panel shows the last
+   read and any error.
+
 ## F. Real Square data on staging (optional, read only)
 
 To see real customers and invoices in staging without connecting staging to the real

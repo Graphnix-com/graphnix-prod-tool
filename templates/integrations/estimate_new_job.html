@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load money %}
+{% block title %}New Job From Estimate · GRAPHNIX tracker{% endblock %}
+{% block content %}
+<p class="muted" style="margin:0"><a href="{% url 'integrations:inbox' %}#estimates">Invoices</a> /</p>
+<h1>New Job From Estimate {{ estimate.number }}</h1>
+<dl class="facts">
+  <dt>Customer</dt><dd>{{ estimate.customer_name|default:"—" }}{% if perms.customers.view_contact_details and estimate.customer_email %} <span class="muted">{{ estimate.customer_email }}</span>{% endif %}</dd>
+  <dt>Total</dt><dd>{{ estimate.total_cents|money:estimate.currency }}</dd>
+  <dt>Status</dt><dd>{{ estimate.state }}</dd>
+</dl>
+<form method="post" style="max-width:600px">
+  {% csrf_token %}
+  <p><label for="title">Job title</label><br>
+    <input type="text" id="title" name="title" maxlength="200" value="Estimate {{ estimate.number }}" placeholder="What Is Being Made" required></p>
+  <h2>Customer</h2>
+  {% for c in candidates %}
+    <p><label><input type="radio" name="customer" value="{{ c.pk }}" {% if forloop.first %}checked{% endif %}>
+      {{ c }}{% if perms.customers.view_contact_details %} <span class="muted">{{ c.email|default:"No email" }} {{ c.phone }}</span>{% endif %}</label></p>
+  {% endfor %}
+  <p><label><input type="radio" name="customer" value="new" {% if not candidates %}checked{% endif %}>
+    New customer: {{ estimate.customer_name|default:estimate.customer_email|default:"named after the estimate" }}</label></p>
+  <p class="muted">The job takes the estimate number and starts at {% if estimate.accepted_at %}Quote Approved{% else %}Quote Sent{% endif %}.</p>
+  <p><button type="submit" class="primary">Create job</button> <a href="{% url 'integrations:inbox' %}#estimates">Cancel</a></p>
+</form>
+{% endblock %}
