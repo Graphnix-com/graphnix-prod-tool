@@ -123,6 +123,7 @@ def job_detail(request, pk):
         context["file_types"] = ",".join(f".{e}" for e in sorted(files.ALLOWED))
     if tab == "details" and context["can_see_money"]:
         context["invoices"] = list(job.square_invoices.all())
+        context["store_orders"] = list(job.square_orders.all())
         if job.amount_total_cents is not None:
             context["balance"] = job.amount_total_cents - job.amount_paid_cents
     if tab == "timeline":

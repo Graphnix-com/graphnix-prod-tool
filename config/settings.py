@@ -159,6 +159,9 @@ SQUARE_WEBHOOK_URL = env("SQUARE_WEBHOOK_URL", default="")
 SQUARE_LOCATION_ID = env("SQUARE_LOCATION_ID", default="")
 SQUARE_API_VERSION = env("SQUARE_API_VERSION", default="2025-01-23")
 SQUARE_ENABLED = bool(SQUARE_ACCESS_TOKEN and SQUARE_WEBHOOK_SIGNATURE_KEY)
+# Square order sources that are online stores: their orders become jobs at Mock-Up
+# Approved. Matched ignoring case, anywhere in the source name. Counter sales aren't.
+SQUARE_STORE_SOURCES = env.list("SQUARE_STORE_SOURCES", default=["Square Online"])
 
 EMAIL_BACKEND = (
     "apps.m365.email_backend.GraphEmailBackend"

@@ -6,6 +6,7 @@ Each night the worker:
 1. checks the token can read the configured location (and says so on the health panel);
 2. re-reads every invoice linked to an open job;
 3. reads invoices updated in the last 3 days, to catch any never seen;
+3b. reads store orders (Square Online) updated in the last 3 days, the same way;
 4. retries stored events that never finished;
 5. deletes webhook bodies older than 90 days (they hold customer names and emails).
 """
@@ -23,7 +24,7 @@ from apps.accounts.models import AppSetting, get_setting
 from apps.jobs.models import Status
 
 from . import square
-from .models import SquareInvoice, WebhookEvent
+from .models import SquareInvoice, SquareOrder, WebhookEvent
 
 log = logging.getLogger(__name__)
 
@@ -95,6 +96,25 @@ def run(now=None) -> dict:
                 seen.add(data["id"])
                 result["checked"] += 1
                 if _refresh(data):
+                    result["fixed"] += 1
+
+        # Store orders (Square Online) updated in the same window: any whose webhook was
+        # missed becomes its job now.
+        from . import orders
+
+        result["orders"] = 0
+        updated_since = since.isoformat()
+        for loc in [location] if location else locations:
+            for order in square.search_orders(loc, updated_since=updated_since):
+                if not orders.is_store_order(order):
+                    continue
+                result["orders"] += 1
+                stored = SquareOrder.objects.filter(square_id=order["id"]).first()
+                before = (stored.version, stored.job_id) if stored else None
+                after = orders.apply(
+                    order, square_customer=orders.buyer_record(order), event_id="nightly"
+                )
+                if after is not None and (after.version, after.job_id) != before:
                     result["fixed"] += 1
 
         for event in WebhookEvent.objects.filter(processed_at__isnull=True):

@@ -17,7 +17,8 @@ Do staging first, with the Square **sandbox**. Production uses the real account,
    - API version: the newest offered
    - Events: `invoice.created`, `invoice.published`, `invoice.updated`,
      `invoice.payment_made`, `invoice.refunded`, `invoice.canceled`, `invoice.deleted`,
-     `invoice.scheduled_charge_failed`, `customer.created`, `customer.updated`
+     `invoice.scheduled_charge_failed`, `customer.created`, `customer.updated`,
+     `order.created`, `order.updated`
    - Save, then copy the subscription's **Signature key**. It is a secret.
 
 ## B. The staging server's `.env`
@@ -77,6 +78,34 @@ docker compose exec web python manage.py import_square_customers
 Customers already linked are skipped, so it's safe to run again. After go-live, a new
 Square customer whose email matches a tracker customer links itself.
 
+## Online store orders
+
+Orders from the Square Online stores skip the quote and invoice: they're paid at checkout and
+use the store's approved design. Each one becomes a job at **Mock-Up Approved**:
+
+- the buyer is the customer (linked by their Square customer, else matched by email, else
+  created);
+- the order's lines become job items, with sizes read from the variation names ("Black /
+  Large" → colour Black, size L) and personalization kept in the item notes;
+- the due date runs from the order, as for any mock-up approval;
+- payment comes from the order: Paid, Refunded or Cancelled.
+
+Counter sales are Square orders too, and are ignored: only orders whose **source** contains
+a name in `SQUARE_STORE_SOURCES` (default `Square Online`) become jobs. Check the real source
+names before go-live:
+
+```bash
+docker compose exec web python manage.py import_square_orders --live --location LXXXX --list
+```
+
+It lists the last 30 days of orders and counts them by source, marking the ones that would
+become jobs. If the stores show under another name, set it in `.env`, comma-separated:
+`SQUARE_STORE_SOURCES=Square Online,Team Shop`.
+
+The webhook subscription needs `order.created` and `order.updated` (section A). The nightly
+check also reads store orders updated in the last 3 days, so a missed webhook still makes
+its job.
+
 ## F. Real Square data on staging (optional, read only)
 
 To see real customers and invoices in staging without connecting staging to the real
@@ -93,6 +122,13 @@ docker compose exec web python manage.py import_square_customers --live --locati
 docker compose exec web python manage.py import_square_customers --live --location LXXXX
 docker compose exec web python manage.py import_square_invoices --live --location LXXXX --latest 3 --dry-run
 docker compose exec web python manage.py import_square_invoices --live --location LXXXX --number 000123
+```
+
+Store orders, the same way (`--list` first to see the sources):
+
+```bash
+docker compose exec web python manage.py import_square_orders --live --location LXXXX --latest 3 --dry-run
+docker compose exec web python manage.py import_square_orders --live --location LXXXX --latest 3
 ```
 
 `import_square_invoices` takes `--latest N` (20 at most), `--number <Square invoice

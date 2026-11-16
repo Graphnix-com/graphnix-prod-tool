@@ -298,6 +298,7 @@ def api(settings, monkeypatch):
     store = {"invoices": {}, "locations": ["LOC1"]}
     monkeypatch.setattr(square, "get_invoice", lambda i: store["invoices"].get(i))
     monkeypatch.setattr(square, "list_invoices", lambda loc, **kw: list(store["invoices"].values()))
+    monkeypatch.setattr(square, "search_orders", lambda loc, **kw: iter(store.get("orders", [])))
     monkeypatch.setattr(square, "list_locations", lambda: store["locations"])
     monkeypatch.setattr(square, "get_order", lambda o: None)
     return store

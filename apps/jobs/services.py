@@ -28,6 +28,7 @@ __all__ = [
     "reopen_cancelled",
     "reopen_mockup",
     "skip_mockup",
+    "store_order_job",
 ]
 
 
@@ -210,6 +211,40 @@ def square_invoiced(job: Job, *, note: str, event_id: str = "") -> Job:
         "status_change",
         {"square_event": [None, event_id]} if event_id else None,
     )
+
+
+@transaction.atomic
+def store_order_job(
+    *, customer, title: str, note: str, fulfillment: str = "", event_id: str = ""
+) -> Job:
+    """A job for an online store order: paid at checkout, with the store's design already
+    approved, so it starts at Mock-Up Approved and its due date runs from now."""
+    from apps.sales.models import Channel
+
+    now = timezone.now()
+    job = Job(
+        customer=customer,
+        title=title[:200],
+        status=Status.MOCKUP_APPROVED,
+        status_changed_at=now,
+        source=Channel.ONLINE_STORE,
+        fulfillment_method=fulfillment,
+    )
+    _on_enter(job, Status.MOCKUP_APPROVED, now)
+    job.save()
+    JobStatusHistory.objects.create(
+        job=job,
+        from_status="",
+        to_status=Status.MOCKUP_APPROVED,
+        source=JobStatusHistory.Source.SQUARE,
+        note=note,
+        changed_at=now,
+    )
+    changes = {"status": [None, Status.MOCKUP_APPROVED], "job_number": [None, job.job_number]}
+    if event_id:
+        changes["square_event"] = [None, event_id]
+    record(None, job, "create", changes)
+    return job
 
 
 def skip_mockup(job: Job, *, user, note: str) -> Job:
