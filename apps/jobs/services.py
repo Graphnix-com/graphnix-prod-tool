@@ -140,7 +140,7 @@ def convert_inquiry(
     """Turn an inquiry into a job (FR-02). The customer must be matched or created first."""
     inquiry = Inquiry.objects.select_for_update().get(pk=inquiry.pk)
     if inquiry.status in (Inquiry.Status.CONVERTED, Inquiry.Status.DECLINED):
-        raise InvalidMove(f"This inquiry is already {inquiry.get_status_display().lower()}.")
+        raise InvalidMove(f"This request is already {inquiry.get_status_display().lower()}.")
     customer = customer or inquiry.customer
     if customer is None:
         raise ValidationError({"customer": "Pick or create the customer first."})

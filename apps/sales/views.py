@@ -38,7 +38,7 @@ def inquiry_new(request):
     if request.method == "POST" and form.is_valid():
         inquiry = form.save()
         record(request.user, inquiry, "create", {"channel": [None, inquiry.channel]})
-        messages.success(request, "Inquiry logged.")
+        messages.success(request, "Request logged.")
         return redirect("sales:detail", pk=inquiry.pk)
     return render(request, "sales/inquiry_form.html", {"form": form})
 
@@ -115,7 +115,7 @@ def inquiry_decline(request, pk):
         inquiry.status = Inquiry.Status.DECLINED
         inquiry.save(update_fields=["status"])
         record(request.user, inquiry, "update", {"status": [old, inquiry.status]})
-        messages.success(request, "Inquiry declined.")
+        messages.success(request, "Request declined.")
     return redirect("sales:list")
 
 

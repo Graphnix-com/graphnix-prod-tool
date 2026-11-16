@@ -95,7 +95,8 @@
     .jobcard summary::-webkit-details-marker { display: none; }
     .jobcard summary::before { content: "▸ "; color: var(--quiet); }
     .jobcard[open] summary::before { content: "▾ "; }
-    .jobcard .more { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
+    .jobcard .more { margin-top: 3px; padding-top: 3px; border-top: 1px solid var(--line); }
+    .jobcard .more > div { margin: 1px 0; }
     .jobcard .open { font-weight: 600; }
     .files { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
     .file { border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: var(--card); }
@@ -160,7 +161,7 @@
       {% if user.is_authenticated %}
         {% if perms.jobs.view_money %}<a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}here{% endif %}">Home</a>{% endif %}
         {% if perms.jobs.view_job %}<a href="{% url 'jobs:list' %}" class="{% if request.resolver_match.app_name == 'jobs' %}here{% endif %}">Board</a>{% endif %}
-        {% if perms.sales.view_inquiry %}<a href="{% url 'sales:list' %}" class="{% if request.resolver_match.app_name == 'sales' %}here{% endif %}">Inquiries</a>{% endif %}
+        {% if perms.sales.view_inquiry %}<a href="{% url 'sales:list' %}" class="{% if request.resolver_match.app_name == 'sales' %}here{% endif %}">Requests</a>{% endif %}
         {% if perms.customers.view_customer %}<a href="{% url 'customers:list' %}" class="{% if request.resolver_match.app_name == 'customers' %}here{% endif %}">Customers</a>{% endif %}
         {% if perms.integrations.link_square_invoice %}<a href="{% url 'integrations:inbox' %}" class="{% if request.resolver_match.url_name == 'inbox' %}here{% endif %}">Invoices{% if invoices_to_link %} <span class="pill customer" title="Invoices to link to a job">{{ invoices_to_link }}</span>{% endif %}</a>{% endif %}
         {% if user.is_staff %}<a href="{% url 'admin:index' %}">Admin</a>{% endif %}

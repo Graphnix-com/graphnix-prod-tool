@@ -1,16 +1,18 @@
 <details class="jobcard {{ c.flag|default:'' }}" data-job="{{ c.job.pk }}">
   <summary><span class="num">{{ c.job.display_number }}</span> {{ c.job.title|truncatechars:60 }}</summary>
   <div class="more">
-    {% if c.job.priority == 1 %}<span class="pill sooner">Sooner</span>{% endif %}
-    {% if c.job.waiting_on == "customer" %}<span class="pill customer">Customer</span>{% endif %}
-    {% if show_stage %}<span class="stage">{{ c.job.get_status_display }}</span>{% endif %}
-    <br>{{ c.job.customer.display_name }}
-    <br>{% if c.job.due_date %}Due {{ c.job.due_date|date:"D j M" }}{% else %}<span class="muted">No due date</span>{% endif %}
-    {% if c.flag %}<span class="flag {{ c.flag }}">{% if c.flag == "overdue" %}Overdue{% else %}At risk{% endif %}</span>{% endif %}
-    {% if c.methods %}<br><span class="muted">{{ c.methods|join:", " }}</span>{% endif %}
-    {% if show_stage and c.mine %}<br><span class="who">Assigned: {{ c.mine|join:", " }}</span>
-    {% elif c.assignees %}<br><span class="who">{{ c.assignees|join:", " }}</span>{% endif %}
-    {% if can_see_money and c.job.payment_status != "unpaid" %}<br><span class="pill {{ c.job.payment_status }}">{{ c.job.get_payment_status_display }}</span>{% endif %}
-    <br><a href="{% url 'jobs:detail' c.job.pk %}" class="open">Open job →</a>
+    {% if c.job.priority == 1 or c.job.waiting_on == "customer" or show_stage %}
+      <div>{% if c.job.priority == 1 %}<span class="pill sooner">Sooner</span>{% endif %}
+        {% if c.job.waiting_on == "customer" %}<span class="pill customer">Customer</span>{% endif %}
+        {% if show_stage %}<span class="stage">{{ c.job.get_status_display }}</span>{% endif %}</div>
+    {% endif %}
+    <div>{{ c.job.customer.display_name }}</div>
+    <div>{% if c.job.due_date %}Due {{ c.job.due_date|date:"D j M" }}{% else %}<span class="muted">No due date</span>{% endif %}
+      {% if c.flag %}<span class="flag {{ c.flag }}">{% if c.flag == "overdue" %}Overdue{% else %}At risk{% endif %}</span>{% endif %}</div>
+    {% if c.methods %}<div class="muted">{{ c.methods|join:", " }}</div>{% endif %}
+    {% if show_stage and c.mine %}<div class="who">Assigned: {{ c.mine|join:", " }}</div>
+    {% elif c.assignees %}<div class="who">{{ c.assignees|join:", " }}</div>{% endif %}
+    {% if can_see_money and c.job.payment_status != "unpaid" %}<div><span class="pill {{ c.job.payment_status }}">{{ c.job.get_payment_status_display }}</span></div>{% endif %}
+    <div><a href="{% url 'jobs:detail' c.job.pk %}" class="open">Open job →</a></div>
   </div>
 </details>

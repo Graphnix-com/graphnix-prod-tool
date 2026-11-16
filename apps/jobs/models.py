@@ -72,7 +72,12 @@ class Job(models.Model):
         "customers.Contact", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
     inquiry = models.OneToOneField(
-        "sales.Inquiry", null=True, blank=True, on_delete=models.SET_NULL, related_name="job"
+        "sales.Inquiry",
+        verbose_name="request",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="job",
     )
     title = models.CharField(max_length=200)
     source = models.CharField(max_length=20, choices=Channel.choices, blank=True)

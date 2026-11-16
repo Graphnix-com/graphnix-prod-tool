@@ -4,7 +4,7 @@
 {% block content %}
 <h1>Today</h1>
 <p class="sub">{{ today|date:"l j F Y" }} ·
-  {% if open_inquiries %}<a href="{% url 'sales:list' %}">{{ open_inquiries }} open inquir{{ open_inquiries|pluralize:"y,ies" }}</a>{% else %}No open inquiries{% endif %}
+  {% if open_inquiries %}<a href="{% url 'sales:list' %}">{{ open_inquiries }} open request{{ open_inquiries|pluralize }}</a>{% else %}No open requests{% endif %}
   · <a href="{% url 'jobs:list' %}">Board</a></p>
 <div class="panels">
   {% for panel in panels %}
