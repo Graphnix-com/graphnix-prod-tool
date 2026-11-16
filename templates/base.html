@@ -1,19 +1,25 @@
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Graphnix tracker{% endblock %}</title>
+  <title>{% block title %}GRAPHNIX tracker{% endblock %}</title>
+  <link rel="icon" type="image/png" href="{% static 'core/logo.png' %}">
   <style>
     :root { --ink: #1d1d1f; --quiet: #666; --line: #e3e3e0; --bg: #f6f6f4; --card: #fff;
-            --accent: #1d4ed8; --warn: #b45309; --bad: #b91c1c; --good: #15803d; }
+            --accent: #343e61; --accent-dark: #262e4a; --accent-light: #dc7423;
+            --accent-tint: #e9ebf2; --warn: #b45309; --bad: #b91c1c; --good: #15803d; }
     * { box-sizing: border-box; }
     body { font: 15px/1.5 system-ui, sans-serif; margin: 0; color: var(--ink); background: var(--bg); }
     a { color: var(--accent); }
     header { display: flex; justify-content: space-between; align-items: center; gap: 16px;
-             padding: 10px 24px; background: var(--card); border-bottom: 1px solid var(--line); }
+             padding: 8px 24px; background: var(--card); border-bottom: 3px solid var(--accent-light); }
+    header nav { display: flex; align-items: center; flex-wrap: wrap; }
+    header .brand { display: inline-flex; margin-right: 24px; border: 0; }
+    header .brand img { display: block; height: 36px; width: auto; }
     header nav a { margin-right: 16px; text-decoration: none; font-weight: 500; }
-    header nav a.here { color: var(--ink); border-bottom: 2px solid var(--accent); }
+    header nav a.here { color: var(--ink); border-bottom: 2px solid var(--accent-light); }
+    :focus-visible { outline: 2px solid var(--accent-light); outline-offset: 2px; }
     header .env { font-size: 12px; padding: 2px 8px; border-radius: 4px; background: #eee; }
     header .env.staging { background: #fde68a; }
     main { max-width: 1200px; margin: 20px auto; padding: 0 24px; }
@@ -29,7 +35,7 @@
     .status { font-weight: 600; text-transform: uppercase; font-size: 12px; }
     .ok { color: var(--good); } .warn { color: var(--warn); } .fail { color: var(--bad); }
     .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px;
-            background: #eef2ff; color: #3730a3; font-weight: 600; }
+            background: var(--accent-tint); color: var(--accent); font-weight: 600; }
     .pill.customer { background: #fef3c7; color: #92400e; }
     .pill.sooner { background: #fee2e2; color: #991b1b; }
     .muted { color: var(--quiet); }
@@ -41,11 +47,13 @@
                       border: 1px solid #c8c8c4; background: #fff; color: var(--ink);
                       text-decoration: none; display: inline-block; }
     button.primary, .button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button.primary:hover, .button.primary:hover { background: var(--accent-dark); }
+    button:hover, .button:hover { border-color: var(--accent); }
     button.danger { color: var(--bad); }
     form.inline { display: inline; }
     .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 16px 0; }
     .tabs a { padding: 8px 14px; text-decoration: none; color: var(--quiet); }
-    .tabs a.here { color: var(--ink); border-bottom: 2px solid var(--accent); font-weight: 600; }
+    .tabs a.here { color: var(--ink); border-bottom: 2px solid var(--accent-light); font-weight: 600; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
     details.action { border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px;
                      background: var(--card); }
@@ -81,7 +89,7 @@
     .jobcard { display: block; background: var(--card); border: 1px solid var(--line);
                border-radius: 6px; padding: 7px 9px; margin-bottom: 6px; color: var(--ink);
                text-decoration: none; font-size: 13px; line-height: 1.4; }
-    .jobcard:hover { border-color: var(--accent); }
+    .jobcard:hover { border-color: var(--accent-light); }
     .jobcard.overdue { border-left: 4px solid var(--bad); }
     .jobcard.at_risk { border-left: 4px solid var(--warn); }
     .jobcard .num { font-weight: 700; }
@@ -90,7 +98,7 @@
                       text-transform: uppercase; }
     .board-grid { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 16px;
                   align-items: start; }
-    .mine { background: #e6ecfb; border-radius: 8px; padding: 8px; position: sticky; top: 10px;
+    .mine { background: var(--accent-tint); border-radius: 8px; padding: 8px; position: sticky; top: 10px;
             max-height: calc(100vh - 20px); overflow-y: auto; }
     .mine h2 { margin: 0 0 8px; font-size: 13px; display: flex; justify-content: space-between;
                text-transform: uppercase; letter-spacing: .04em; }
@@ -117,7 +125,7 @@
     .names .name { display: block; padding: 28px 16px; text-align: center; font-size: 22px;
                    font-weight: 600; background: var(--card); border: 1px solid var(--line);
                    border-radius: 10px; text-decoration: none; color: var(--ink); }
-    .names .name:hover { border-color: var(--accent); }
+    .names .name:hover { border-color: var(--accent-light); }
     .names .name small { display: block; font-size: 13px; color: var(--bad); font-weight: 600; }
     .names .name.locked { opacity: .7; }
     .pinpad { max-width: 360px; margin: 24px auto; text-align: center; }
@@ -131,7 +139,7 @@
 <body>
   <header>
     <nav>
-      <strong style="margin-right:20px">Graphnix tracker</strong>
+      <a href="{% url 'home' %}" class="brand"><img src="{% static 'core/logo.png' %}" alt="GRAPHNIX home" width="38" height="36"></a>
       {% if user.is_authenticated %}
         {% if perms.jobs.view_money %}<a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}here{% endif %}">Home</a>{% endif %}
         {% if perms.jobs.view_job %}<a href="{% url 'jobs:list' %}" class="{% if request.resolver_match.app_name == 'jobs' %}here{% endif %}">Board</a>{% endif %}

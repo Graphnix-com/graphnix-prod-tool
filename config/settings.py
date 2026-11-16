@@ -155,7 +155,7 @@ EMAIL_BACKEND = (
 DEFAULT_FROM_EMAIL = M365_SENDER
 SERVER_EMAIL = M365_SENDER
 ADMINS = [("Admin", addr) for addr in env.list("CRASH_EMAIL_TO", default=[])]
-EMAIL_SUBJECT_PREFIX = f"[Graphnix tracker {APP_ENV}] "
+EMAIL_SUBJECT_PREFIX = f"[GRAPHNIX tracker {APP_ENV}] "
 CRASH_EMAIL_THROTTLE_SECONDS = env.int("CRASH_EMAIL_THROTTLE_SECONDS", default=600)
 
 # --- Health panel -----------------------------------------------------------

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Search · Graphnix tracker{% endblock %}
+{% block title %}Search · GRAPHNIX tracker{% endblock %}
 {% block content %}
 <h1>Search</h1>
 <p class="sub">{% if query %}Jobs matching “{{ query }}”, by job number, title or customer{% if perms.customers.view_contact_details %} name or email{% endif %}.{% else %}Type a job number or customer in the box at the top.{% endif %}</p>

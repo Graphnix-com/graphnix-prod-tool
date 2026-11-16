@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Choose your PIN · Graphnix tracker{% endblock %}
+{% block title %}New PIN · GRAPHNIX tracker{% endblock %}
 {% block content %}
 <div class="card pinpad">
-  <h1>Choose your own PIN</h1>
-  <p class="sub">{{ user.get_short_name }}, you signed in with a PIN you were given. Pick 4 digits only you know.</p>
+  <h1>Choose a new PIN</h1>
+  <p class="sub">This PIN was set by an admin. Choose a new 4-digit PIN to keep.</p>
   {% for error in form.non_field_errors %}<p class="fail" role="alert">{{ error }}</p>{% endfor %}
   <form method="post" id="pin-form">
     {% csrf_token %}
@@ -19,7 +19,7 @@
       <button type="submit" class="primary">Save</button>
     </div>
   </form>
-  <p class="help">Too easy to guess (like 1234 or 0000) won't be accepted.</p>
+  <p class="help">PINs that are easy to guess, like 1234 or 0000, are refused.</p>
 </div>
 <script>
   (function () {
