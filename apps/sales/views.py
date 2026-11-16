@@ -71,7 +71,7 @@ def inquiry_detail(request, pk):
     inquiry = get_object_or_404(Inquiry.objects.select_related("customer"), pk=pk)
     query = request.GET.get("q", "").strip()
     convert_form = ConvertForm(
-        initial={"start": "quoting", "title": inquiry.subject or ""},
+        initial={"start": "quoting", "title": inquiry.subject or ""}, inquiry=inquiry
     )
     return render(
         request,
@@ -124,7 +124,7 @@ def inquiry_decline(request, pk):
 @require_POST
 def inquiry_convert(request, pk):
     inquiry = get_object_or_404(Inquiry, pk=pk)
-    form = ConvertForm(request.POST)
+    form = ConvertForm(request.POST, inquiry=inquiry)
     if not form.is_valid():
         messages.error(request, "Pick Quote first or Straight to invoice, and give a title.")
         return redirect("sales:detail", pk=inquiry.pk)
