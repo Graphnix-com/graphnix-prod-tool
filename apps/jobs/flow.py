@@ -14,9 +14,7 @@ from .models import Status
 PATH = [
     Status.QUOTING,
     Status.QUOTE_SENT,
-    Status.QUOTE_APPROVED,
-    Status.INVOICED,
-    Status.MOCKUP_IN_PROGRESS,
+    Status.INVOICED,  # also "quote approved", and the mock-up being drawn
     Status.MOCKUP_SENT,
     Status.MOCKUP_APPROVED,
     Status.MATERIALS_ORDERED,
@@ -30,7 +28,7 @@ PATH = [
 
 START_STATUSES = {Status.QUOTING, Status.INVOICED}
 # A sent Square invoice moves a job from these to Invoiced (FR-06).
-BEFORE_INVOICED = {Status.QUOTING, Status.QUOTE_SENT, Status.QUOTE_APPROVED}
+BEFORE_INVOICED = {Status.QUOTING, Status.QUOTE_SENT}
 
 OFFICE = "jobs.move_office_stages"
 PRODUCTION = "jobs.move_production_stages"
@@ -42,9 +40,7 @@ REOPEN = "jobs.reopen_cancelled_job"
 LANE = {
     Status.QUOTING: OFFICE,
     Status.QUOTE_SENT: OFFICE,
-    Status.QUOTE_APPROVED: OFFICE,
     Status.INVOICED: OFFICE,
-    Status.MOCKUP_IN_PROGRESS: OFFICE,
     Status.MOCKUP_SENT: OFFICE,
     Status.MOCKUP_APPROVED: OFFICE,
     Status.MATERIALS_ORDERED: OFFICE,
@@ -67,7 +63,8 @@ REOPEN_MOCKUP_FROM = {
     Status.MATERIALS_ORDERED,
     Status.READY_FOR_PRODUCTION,
 }
-REOPEN_MOCKUP_TO = Status.MOCKUP_IN_PROGRESS
+# Back to drawing: the stage before Mock-up Sent.
+REOPEN_MOCKUP_TO = Status.INVOICED
 
 FORWARD = "forward"
 JUMP = "jump"  # backward, or skipping a stage: needs OVERRIDE and a reason

@@ -28,8 +28,8 @@ __all__ = [
     "reopen_cancelled",
     "reopen_mockup",
     "skip_mockup",
+    "square_estimate_accepted",
     "square_estimate_job",
-    "square_quote_approved",
     "square_quote_sent",
     "store_order_job",
 ]
@@ -55,8 +55,8 @@ def _on_enter(job: Job, status: str, now) -> None:
     """Dates that follow from reaching a stage."""
     if status == Status.QUOTE_SENT and job.quote_sent_at is None:
         job.quote_sent_at = now
-    elif status == Status.QUOTE_APPROVED and job.quote_approved_at is None:
-        job.quote_approved_at = now
+    elif status == Status.INVOICED and job.quote_approved_at is None:
+        job.quote_approved_at = now  # the quote is approved once it's invoiced
     elif status == Status.MOCKUP_APPROVED:
         # The 14-business-day queue starts at each approval; a reopened mock-up gets a new
         # suggestion. The due date itself is only filled in if nobody has set one.
@@ -303,16 +303,17 @@ def square_quote_sent(job: Job, *, note: str) -> Job:
 
 
 @transaction.atomic
-def square_quote_approved(job: Job, *, note: str) -> Job:
-    """The customer accepted the Square estimate: Quoting or Quote Sent moves to Quote
-    Approved. A job already further on stays where it is."""
+def square_estimate_accepted(job: Job, *, note: str) -> Job:
+    """The customer accepted the Square estimate: Quoting or Quote Sent moves to Invoiced,
+    since Square turns the estimate into an invoice at once. A job already further on stays
+    where it is."""
     job = _locked(job)
-    if job.status not in (Status.QUOTING, Status.QUOTE_SENT):
-        if job.quote_approved_at is None and job.status in flow.BEFORE_INVOICED | {Status.INVOICED}:
+    if job.status not in flow.BEFORE_INVOICED:
+        if job.quote_approved_at is None and job.status == Status.INVOICED:
             Job.objects.filter(pk=job.pk).update(quote_approved_at=timezone.now())
         return job
     return _change_status(
-        job, Status.QUOTE_APPROVED, None, note, JobStatusHistory.Source.SQUARE, "status_change"
+        job, Status.INVOICED, None, note, JobStatusHistory.Source.SQUARE, "status_change"
     )
 
 
@@ -324,7 +325,8 @@ def skip_mockup(job: Job, *, user, note: str) -> Job:
 
 
 def reopen_mockup(job: Job, *, user, note: str) -> Job:
-    """Back to Mock-up in progress after approval, e.g. the customer changed their mind."""
+    """Back to Invoiced after approval, to draw a new mock-up and send it again, e.g. the
+    customer changed their mind."""
     if job.status not in flow.REOPEN_MOCKUP_FROM:
         raise InvalidMove(
             "A mock-up can be reopened from Mock-up approved, Materials ordered "

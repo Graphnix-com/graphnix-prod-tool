@@ -153,7 +153,7 @@ class SquareEstimate(models.Model):
     """A Square estimate, known only from Square's emails: its API has no estimates.
 
     "A new estimate was sent to …" puts the job at Quote Sent; "You accepted an estimate!"
-    puts it at Quote Approved. The estimate number becomes the job's Square number."""
+    puts it at Invoiced. The estimate number becomes the job's Square number."""
 
     class Match(models.TextChoices):
         NUMBER = "number", "Estimate number already on the job"

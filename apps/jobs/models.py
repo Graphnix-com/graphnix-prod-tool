@@ -16,8 +16,12 @@ JOB_NUMBER_PREFIX = "G-"
 class Status(models.TextChoices):
     QUOTING = "quoting", "Quoting"
     QUOTE_SENT = "quote_sent", "Quote Sent"
+    # Retired: merged into Invoiced (Square invoices an accepted estimate at once). No job
+    # can reach it; kept so older history still reads "Quote Approved".
     QUOTE_APPROVED = "quote_approved", "Quote Approved"
     INVOICED = "invoiced", "Invoiced"
+    # Retired: Invoiced goes straight to Mock-up Sent. No job can reach it; kept so older
+    # history still reads "Mock-up In Progress".
     MOCKUP_IN_PROGRESS = "mockup_in_progress", "Mock-up In Progress"
     MOCKUP_SENT = "mockup_sent", "Mock-up Sent"
     MOCKUP_APPROVED = "mockup_approved", "Mock-up Approved"
@@ -172,6 +176,15 @@ class Job(models.Model):
         if self.amount_total_cents is None:
             return None
         return self.amount_total_cents - self.amount_paid_cents
+
+    @property
+    def online_order(self) -> str:
+        """ "New Online Order" for a store order nobody has moved on from Mock-Up Approved
+        (where it arrives, already paid, past quoting and invoicing); "Online Order" after
+        that; "" for any other job."""
+        if self.source != Channel.ONLINE_STORE:
+            return ""
+        return "New Online Order" if self.status == Status.MOCKUP_APPROVED else "Online Order"
 
     @property
     def display_number(self) -> str:

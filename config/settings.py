@@ -66,6 +66,7 @@ TEMPLATES = [
                 "apps.core.context_processors.app_info",
                 "apps.accounts.context_processors.sign_in",
                 "apps.integrations.context_processors.square_inbox",
+                "apps.sales.context_processors.new_requests",
             ],
         },
     },
@@ -168,6 +169,14 @@ ESTIMATE_MAILBOX = env("ESTIMATE_MAILBOX", default="")
 ESTIMATE_SENDERS = env.list(
     "ESTIMATE_SENDERS",
     default=["invoicing@messaging.squareup.com", "messenger@messaging.squareup.com"],
+)
+# The website's contact form (GoDaddy) emails info@ too: each becomes a request. Same
+# mailbox as the estimates unless set; "off" turns it off.
+WEBFORM_MAILBOX = env("WEBFORM_MAILBOX", default=ESTIMATE_MAILBOX)
+if WEBFORM_MAILBOX.lower() == "off":
+    WEBFORM_MAILBOX = ""
+WEBFORM_SENDERS = env.list(
+    "WEBFORM_SENDERS", default=["notifications@mail.conversations.godaddy.com"]
 )
 
 EMAIL_BACKEND = (

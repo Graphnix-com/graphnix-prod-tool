@@ -91,8 +91,8 @@ def test_skipping_ahead_doesnt_avoid_the_gate(job_at, manager):
 
 def test_moving_back_is_never_gated(job_at, manager):
     job = job_at(Status.IN_PRODUCTION)
-    job = services.move(job, Status.MOCKUP_IN_PROGRESS, user=manager, note="Redo")
-    assert job.status == Status.MOCKUP_IN_PROGRESS
+    job = services.move(job, Status.INVOICED, user=manager, note="Redo")
+    assert job.status == Status.INVOICED
 
 
 def test_no_gates_without_square(job, manager, settings):
@@ -150,7 +150,7 @@ def test_an_unmatched_invoice_waits_in_the_inbox(client, manager, unmatched):
 
 
 def test_linking_by_hand_updates_the_job(client, manager, unmatched, job):
-    job.status = Status.QUOTE_APPROVED
+    job.status = Status.QUOTE_SENT
     job.save()
     client.force_login(manager)
     client.post(reverse("integrations:invoice_link", args=[unmatched.pk]), {"job_number": "G-1042"})

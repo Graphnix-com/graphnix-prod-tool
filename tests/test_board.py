@@ -158,7 +158,6 @@ def panel(panels, title):
 def test_home_splits_by_who_acts_next(customer):
     make(customer, Status.QUOTING, "to quote")
     make(customer, Status.QUOTE_SENT, "quote out")
-    make(customer, Status.MOCKUP_IN_PROGRESS, "drawing")
     make(customer, Status.MOCKUP_SENT, "proof out")
     make(
         customer,
@@ -177,8 +176,8 @@ def test_home_splits_by_who_acts_next(customer):
     make(customer, Status.INVOICED, "invoiced")
     panels = board.home(Flagger(on=TODAY))
     assert panel(panels, "Quotes") == (["to quote"], ["quote out"])
-    assert panel(panels, "Mock-ups") == (["drawing"], ["proof out", "changing proof"])
-    assert panel(panels, "Invoices") == (["invoiced"], [])
+    assert panel(panels, "Mock-ups") == ([], ["proof out", "changing proof"])
+    assert panel(panels, "Invoices") == (["invoiced"], [])  # the mock-up to draw
     every_title = [c.job.title for p in panels for c in p.graphnix + p.customer]
     assert "blanks late" not in every_title
 

@@ -8,6 +8,7 @@
   {% if job.square_number %}· internal {{ job.job_number }}{% endif %}
   · Due {% if job.due_date %}{{ job.due_date|date:"D j M Y" }}{% else %}<span class="muted">not set</span>{% endif %}
   {% if job.priority == 1 %}<span class="pill sooner">Sooner if possible</span>{% endif %}
+  {% if job.online_order %}<span class="pill online{% if job.status == "mockup_approved" %} new{% endif %}">{{ job.online_order }}</span>{% endif %}
 </p>
 
 <div class="card">
@@ -56,7 +57,7 @@
         <form method="post" action="{% url 'jobs:action' job.pk %}">
           {% csrf_token %}<input type="hidden" name="action" value="reopen_mockup">
           <label>Reason</label><input type="text" name="note" required placeholder="E.g. Customer Wants Navy Ink">
-          <p><button type="submit">Back to Mock-up in progress</button></p>
+          <p><button type="submit">Back to Invoiced for a new mock-up</button></p>
         </form>
       </details>
     {% endif %}

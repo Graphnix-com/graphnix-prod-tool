@@ -171,17 +171,18 @@ def test_other_square_mail_is_recorded_and_ignored():
 # --- Accepted --------------------------------------------------------------------------
 
 
-def test_acceptance_moves_the_job_to_quote_approved():
+def test_acceptance_moves_the_job_to_invoiced():
     estimates.handle(message())
     estimates.handle(accepted_message())
     job = Job.objects.get()
-    assert job.status == Status.QUOTE_APPROVED and job.quote_approved_at is not None
+    assert job.status == Status.INVOICED and job.quote_approved_at is not None
+    assert job.history.last().note == "Square estimate 000685 accepted"
 
 
 def test_acceptance_without_the_sent_email_still_works():
     estimates.handle(accepted_message())
     job = Job.objects.get()
-    assert job.status == Status.QUOTE_APPROVED and job.square_number == "000685"
+    assert job.status == Status.INVOICED and job.square_number == "000685"
 
 
 def test_a_job_already_past_quotes_stays_put(josh, job_at):
@@ -254,7 +255,7 @@ def mailbox(settings, monkeypatch):
 def test_check_mail_handles_new_messages_and_remembers(mailbox):
     result = estimates.check_mail()
     assert result["read"] == 2 and result["error"] == ""
-    assert Job.objects.get().status == Status.QUOTE_APPROVED
+    assert Job.objects.get().status == Status.INVOICED
     again = estimates.check_mail()
     assert again["read"] == 0
     assert mailbox["since"][1] < timezone.now() - timedelta(hours=23)  # a day of overlap

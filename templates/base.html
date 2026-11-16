@@ -39,6 +39,8 @@
     .pill.customer { background: #fef3c7; color: #92400e; }
     .pill.sooner, .pill.refunded { background: #fee2e2; color: #991b1b; }
     .pill.paid { background: #dcfce7; color: #166534; }
+    .pill.online { background: #e0e7ff; color: #3730a3; }
+    .pill.online.new { background: #4338ca; color: #fff; }
     .muted { color: var(--quiet); }
     .messages { list-style: none; padding: 0; margin: 0 0 16px; }
     .messages li { padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; }
@@ -164,7 +166,7 @@
       {% if user.is_authenticated %}
         {% if perms.jobs.view_money %}<a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}here{% endif %}">Home</a>{% endif %}
         {% if perms.jobs.view_job %}<a href="{% url 'jobs:list' %}" class="{% if request.resolver_match.app_name == 'jobs' %}here{% endif %}">Board</a>{% endif %}
-        {% if perms.sales.view_inquiry %}<a href="{% url 'sales:list' %}" class="{% if request.resolver_match.app_name == 'sales' %}here{% endif %}">Requests</a>{% endif %}
+        {% if perms.sales.view_inquiry %}<a href="{% url 'sales:list' %}" class="{% if request.resolver_match.app_name == 'sales' %}here{% endif %}">Requests{% if new_requests %} <span class="pill customer" title="New requests waiting">{{ new_requests }}</span>{% endif %}</a>{% endif %}
         {% if perms.customers.view_customer %}<a href="{% url 'customers:list' %}" class="{% if request.resolver_match.app_name == 'customers' %}here{% endif %}">Customers</a>{% endif %}
         {% if perms.integrations.link_square_invoice %}<a href="{% url 'integrations:inbox' %}" class="{% if request.resolver_match.url_name == 'inbox' %}here{% endif %}">Invoices{% if square_to_link %} <span class="pill customer" title="Invoices and estimates to link to a job">{{ square_to_link }}</span>{% endif %}</a>{% endif %}
         {% if user.is_staff %}<a href="{% url 'admin:index' %}">Admin</a>{% endif %}

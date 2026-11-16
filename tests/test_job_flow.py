@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from apps.accounts.models import AppSetting
 from apps.audit.models import AuditLog
-from apps.jobs import services
+from apps.jobs import flow, services
 from apps.jobs.models import HoldReason, JobStatusHistory, Status, WaitingOn
 from apps.jobs.services import InvalidMove
 
@@ -20,9 +20,7 @@ EDMONTON = ZoneInfo("America/Edmonton")
 PATH = [
     Status.QUOTING,
     Status.QUOTE_SENT,
-    Status.QUOTE_APPROVED,
     Status.INVOICED,
-    Status.MOCKUP_IN_PROGRESS,
     Status.MOCKUP_SENT,
     Status.MOCKUP_APPROVED,
     Status.MATERIALS_ORDERED,
@@ -36,7 +34,7 @@ PATH = [
 
 # Written out from the spec rather than imported from apps.jobs.flow, so the test checks the
 # rules instead of repeating them. Who may move a job forward out of each lane:
-OFFICE_LANE = set(PATH[:8])  # Quoting .. Materials Ordered
+OFFICE_LANE = set(PATH[:6])  # Quoting .. Materials Ordered
 PRODUCTION_LANE = {Status.READY_FOR_PRODUCTION, Status.IN_PRODUCTION}
 FINISH_LANE = {Status.QA, Status.READY, Status.SHIPPED}
 FORWARD_ALLOWED = [
@@ -83,7 +81,7 @@ def test_every_move_for_each_role(role, make_user, job_at):
 
 def test_backward_or_skip_needs_a_reason(manager, job_at):
     with pytest.raises(InvalidMove, match="reason"):
-        services.move(job_at(Status.MOCKUP_SENT), Status.MOCKUP_IN_PROGRESS, user=manager)
+        services.move(job_at(Status.MOCKUP_SENT), Status.INVOICED, user=manager)
     with pytest.raises(InvalidMove, match="reason"):
         services.move(job_at(Status.QUOTING), Status.INVOICED, user=manager, note="   ")
 
@@ -124,8 +122,8 @@ def test_refused_move_writes_nothing(make_user, job_at):
 def test_quote_dates_are_stamped(manager, job_at):
     job = services.move(job_at(Status.QUOTING), Status.QUOTE_SENT, user=manager)
     assert job.quote_sent_at is not None
-    job = services.move(job, Status.QUOTE_APPROVED, user=manager)
-    assert job.quote_approved_at is not None
+    job = services.move(job, Status.INVOICED, user=manager)
+    assert job.quote_approved_at is not None  # invoiced is approved
 
 
 # --- Mock-ups and due dates ------------------------------------------------------
@@ -168,7 +166,7 @@ def test_skip_mockup_only_from_invoiced(manager, job_at):
     job = services.skip_mockup(job_at(Status.INVOICED), user=manager, note="Online store order")
     assert job.status == Status.MATERIALS_ORDERED
     with pytest.raises(InvalidMove):
-        services.skip_mockup(job_at(Status.QUOTE_APPROVED), user=manager, note="x")
+        services.skip_mockup(job_at(Status.QUOTE_SENT), user=manager, note="x")
 
 
 @pytest.mark.parametrize(
@@ -176,7 +174,7 @@ def test_skip_mockup_only_from_invoiced(manager, job_at):
 )
 def test_reopen_mockup(frm, manager, job_at):
     job = services.reopen_mockup(job_at(frm), user=manager, note="Customer wants navy ink")
-    assert job.status == Status.MOCKUP_IN_PROGRESS
+    assert job.status == Status.INVOICED
 
 
 def test_reopen_mockup_refused_elsewhere_and_for_production(make_user, manager, job_at):
@@ -281,3 +279,56 @@ def test_cancel_from_the_job_page_without_a_reason(client, manager, job_at):
     client.post(reverse("jobs:action", args=[job.pk]), {"action": "cancel", "note": ""})
     job.refresh_from_db()
     assert job.status == Status.CANCELLED
+
+
+# --- Quote Approved, merged into Invoiced ----------------------------------------------
+
+
+def test_quote_approved_is_no_longer_a_stage(manager, job_at):
+    job = job_at(Status.QUOTE_SENT)
+    assert Status.QUOTE_APPROVED not in flow.PATH
+    with pytest.raises(InvalidMove):
+        services.move(job, Status.QUOTE_APPROVED, user=manager)
+
+
+def test_jobs_at_quote_approved_move_to_invoiced(job_at):
+    from importlib import import_module
+
+    from django.apps import apps
+
+    merge = import_module("apps.jobs.migrations.0008_merge_quote_approved_into_invoiced")
+    waiting = job_at(Status.QUOTE_APPROVED)
+    held = job_at(Status.ON_HOLD, resume_status=Status.QUOTE_APPROVED)
+    merge.forward(apps, None)
+    waiting.refresh_from_db()
+    held.refresh_from_db()
+    assert waiting.status == Status.INVOICED and waiting.quote_approved_at is not None
+    row = waiting.history.get()
+    assert (row.from_status, row.to_status) == (Status.QUOTE_APPROVED, Status.INVOICED)
+    assert row.get_from_status_display() == "Quote Approved"  # old history still reads
+    assert held.status == Status.ON_HOLD and held.resume_status == Status.INVOICED
+
+
+# --- Mock-up In Progress, retired ------------------------------------------------------
+
+
+def test_invoiced_goes_straight_to_mockup_sent(manager, job_at):
+    assert Status.MOCKUP_IN_PROGRESS not in flow.PATH
+    job = services.move(job_at(Status.INVOICED), Status.MOCKUP_SENT, user=manager)
+    assert job.status == Status.MOCKUP_SENT  # one step forward: no reason needed
+
+
+def test_jobs_at_mockup_in_progress_move_to_invoiced(job_at):
+    from importlib import import_module
+
+    from django.apps import apps
+
+    retire = import_module("apps.jobs.migrations.0009_retire_mockup_in_progress")
+    drawing = job_at(Status.MOCKUP_IN_PROGRESS)
+    held = job_at(Status.ON_HOLD, resume_status=Status.MOCKUP_IN_PROGRESS)
+    retire.forward(apps, None)
+    drawing.refresh_from_db()
+    held.refresh_from_db()
+    assert drawing.status == Status.INVOICED
+    assert drawing.history.get().get_from_status_display() == "Mock-up In Progress"
+    assert held.resume_status == Status.INVOICED

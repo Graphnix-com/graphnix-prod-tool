@@ -117,7 +117,7 @@ def run(payload):
 
 @pytest.fixture
 def job(job_at):
-    j = job_at(Status.QUOTE_APPROVED)
+    j = job_at(Status.QUOTE_SENT)
     j.job_number = "G-1042"
     j.save()
     return j
@@ -187,7 +187,7 @@ def test_an_invoice_matching_nothing_waits_unlinked(job):
     inv = SquareInvoice.objects.get()
     assert inv.job is None
     job.refresh_from_db()
-    assert job.status == Status.QUOTE_APPROVED
+    assert job.status == Status.QUOTE_SENT
 
 
 def test_an_invoice_naming_two_jobs_waits_unlinked(job, job_at):
@@ -315,7 +315,7 @@ def test_a_sent_invoice_moves_the_job_to_invoiced(job):
 def test_a_draft_links_but_moves_nothing(job):
     run(event("invoice.created", inv=invoice(status="DRAFT")))
     job.refresh_from_db()
-    assert job.status == Status.QUOTE_APPROVED
+    assert job.status == Status.QUOTE_SENT
     assert SquareInvoice.objects.get().job == job
 
 
@@ -373,7 +373,7 @@ def test_payments_are_on_the_timeline_for_money_roles_only(job):
     assert "Square invoice 000123 linked" in with_money
     without = timeline.build(job)
     assert not any("Payment" in e.title or "$" in e.detail for e in without)
-    assert any(e.title == "Quote Approved → Invoiced" for e in without)
+    assert any(e.title == "Quote Sent → Invoiced" for e in without)
 
 
 def test_production_sees_no_money_on_the_job_page(client, job, make_user):
