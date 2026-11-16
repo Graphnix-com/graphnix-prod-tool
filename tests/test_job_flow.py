@@ -21,7 +21,6 @@ PATH = [
     Status.QUOTING,
     Status.QUOTE_SENT,
     Status.INVOICED,
-    Status.MOCKUP_IN_PROGRESS,
     Status.MOCKUP_SENT,
     Status.MOCKUP_APPROVED,
     Status.MATERIALS_ORDERED,
@@ -35,7 +34,7 @@ PATH = [
 
 # Written out from the spec rather than imported from apps.jobs.flow, so the test checks the
 # rules instead of repeating them. Who may move a job forward out of each lane:
-OFFICE_LANE = set(PATH[:7])  # Quoting .. Materials Ordered
+OFFICE_LANE = set(PATH[:6])  # Quoting .. Materials Ordered
 PRODUCTION_LANE = {Status.READY_FOR_PRODUCTION, Status.IN_PRODUCTION}
 FINISH_LANE = {Status.QA, Status.READY, Status.SHIPPED}
 FORWARD_ALLOWED = [
@@ -82,7 +81,7 @@ def test_every_move_for_each_role(role, make_user, job_at):
 
 def test_backward_or_skip_needs_a_reason(manager, job_at):
     with pytest.raises(InvalidMove, match="reason"):
-        services.move(job_at(Status.MOCKUP_SENT), Status.MOCKUP_IN_PROGRESS, user=manager)
+        services.move(job_at(Status.MOCKUP_SENT), Status.INVOICED, user=manager)
     with pytest.raises(InvalidMove, match="reason"):
         services.move(job_at(Status.QUOTING), Status.INVOICED, user=manager, note="   ")
 
@@ -175,7 +174,7 @@ def test_skip_mockup_only_from_invoiced(manager, job_at):
 )
 def test_reopen_mockup(frm, manager, job_at):
     job = services.reopen_mockup(job_at(frm), user=manager, note="Customer wants navy ink")
-    assert job.status == Status.MOCKUP_IN_PROGRESS
+    assert job.status == Status.INVOICED
 
 
 def test_reopen_mockup_refused_elsewhere_and_for_production(make_user, manager, job_at):
@@ -308,3 +307,28 @@ def test_jobs_at_quote_approved_move_to_invoiced(job_at):
     assert (row.from_status, row.to_status) == (Status.QUOTE_APPROVED, Status.INVOICED)
     assert row.get_from_status_display() == "Quote Approved"  # old history still reads
     assert held.status == Status.ON_HOLD and held.resume_status == Status.INVOICED
+
+
+# --- Mock-up In Progress, retired ------------------------------------------------------
+
+
+def test_invoiced_goes_straight_to_mockup_sent(manager, job_at):
+    assert Status.MOCKUP_IN_PROGRESS not in flow.PATH
+    job = services.move(job_at(Status.INVOICED), Status.MOCKUP_SENT, user=manager)
+    assert job.status == Status.MOCKUP_SENT  # one step forward: no reason needed
+
+
+def test_jobs_at_mockup_in_progress_move_to_invoiced(job_at):
+    from importlib import import_module
+
+    from django.apps import apps
+
+    retire = import_module("apps.jobs.migrations.0009_retire_mockup_in_progress")
+    drawing = job_at(Status.MOCKUP_IN_PROGRESS)
+    held = job_at(Status.ON_HOLD, resume_status=Status.MOCKUP_IN_PROGRESS)
+    retire.forward(apps, None)
+    drawing.refresh_from_db()
+    held.refresh_from_db()
+    assert drawing.status == Status.INVOICED
+    assert drawing.history.get().get_from_status_display() == "Mock-up In Progress"
+    assert held.resume_status == Status.INVOICED

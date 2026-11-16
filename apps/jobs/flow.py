@@ -14,8 +14,7 @@ from .models import Status
 PATH = [
     Status.QUOTING,
     Status.QUOTE_SENT,
-    Status.INVOICED,  # also "quote approved": Square invoices an accepted estimate at once
-    Status.MOCKUP_IN_PROGRESS,
+    Status.INVOICED,  # also "quote approved", and the mock-up being drawn
     Status.MOCKUP_SENT,
     Status.MOCKUP_APPROVED,
     Status.MATERIALS_ORDERED,
@@ -42,7 +41,6 @@ LANE = {
     Status.QUOTING: OFFICE,
     Status.QUOTE_SENT: OFFICE,
     Status.INVOICED: OFFICE,
-    Status.MOCKUP_IN_PROGRESS: OFFICE,
     Status.MOCKUP_SENT: OFFICE,
     Status.MOCKUP_APPROVED: OFFICE,
     Status.MATERIALS_ORDERED: OFFICE,
@@ -65,7 +63,8 @@ REOPEN_MOCKUP_FROM = {
     Status.MATERIALS_ORDERED,
     Status.READY_FOR_PRODUCTION,
 }
-REOPEN_MOCKUP_TO = Status.MOCKUP_IN_PROGRESS
+# Back to drawing: the stage before Mock-up Sent.
+REOPEN_MOCKUP_TO = Status.INVOICED
 
 FORWARD = "forward"
 JUMP = "jump"  # backward, or skipping a stage: needs OVERRIDE and a reason

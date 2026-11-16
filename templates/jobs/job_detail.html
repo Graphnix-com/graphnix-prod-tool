@@ -57,7 +57,7 @@
         <form method="post" action="{% url 'jobs:action' job.pk %}">
           {% csrf_token %}<input type="hidden" name="action" value="reopen_mockup">
           <label>Reason</label><input type="text" name="note" required placeholder="E.g. Customer Wants Navy Ink">
-          <p><button type="submit">Back to Mock-up in progress</button></p>
+          <p><button type="submit">Back to Invoiced for a new mock-up</button></p>
         </form>
       </details>
     {% endif %}

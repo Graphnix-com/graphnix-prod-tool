@@ -325,7 +325,8 @@ def skip_mockup(job: Job, *, user, note: str) -> Job:
 
 
 def reopen_mockup(job: Job, *, user, note: str) -> Job:
-    """Back to Mock-up in progress after approval, e.g. the customer changed their mind."""
+    """Back to Invoiced after approval, to draw a new mock-up and send it again, e.g. the
+    customer changed their mind."""
     if job.status not in flow.REOPEN_MOCKUP_FROM:
         raise InvalidMove(
             "A mock-up can be reopened from Mock-up approved, Materials ordered "

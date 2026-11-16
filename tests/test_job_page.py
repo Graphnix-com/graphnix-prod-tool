@@ -290,7 +290,7 @@ def test_manager_sees_payment_and_contacts(client, manager, job_at):
 
 def test_buttons_follow_the_rules(manager, make_user, job_at):
     actions = services.actions_for(job_at(Status.INVOICED), manager)
-    assert actions["forward"]["to"] == Status.MOCKUP_IN_PROGRESS
+    assert actions["forward"]["to"] == Status.MOCKUP_SENT
     assert actions["skip_mockup"] and actions["hold"] and actions["cancel"]
     assert not actions["reopen_mockup"] and not actions["release"]
 

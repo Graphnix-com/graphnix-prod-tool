@@ -17,7 +17,6 @@ LANES = [
     (
         "Pre-production",
         [
-            Status.MOCKUP_IN_PROGRESS,
             Status.MOCKUP_SENT,
             Status.MOCKUP_APPROVED,
             Status.MATERIALS_ORDERED,
@@ -188,7 +187,7 @@ HOME_PANELS = [
     ("Quotes", [Status.QUOTING, Status.QUOTE_SENT]),
     (
         "Mock-ups",
-        [Status.MOCKUP_IN_PROGRESS, Status.MOCKUP_SENT, Status.MOCKUP_APPROVED],
+        [Status.MOCKUP_SENT, Status.MOCKUP_APPROVED],
     ),
     ("Invoices", [Status.INVOICED]),
 ]

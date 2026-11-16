@@ -91,8 +91,8 @@ def test_skipping_ahead_doesnt_avoid_the_gate(job_at, manager):
 
 def test_moving_back_is_never_gated(job_at, manager):
     job = job_at(Status.IN_PRODUCTION)
-    job = services.move(job, Status.MOCKUP_IN_PROGRESS, user=manager, note="Redo")
-    assert job.status == Status.MOCKUP_IN_PROGRESS
+    job = services.move(job, Status.INVOICED, user=manager, note="Redo")
+    assert job.status == Status.INVOICED
 
 
 def test_no_gates_without_square(job, manager, settings):

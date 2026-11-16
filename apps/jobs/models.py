@@ -20,6 +20,8 @@ class Status(models.TextChoices):
     # can reach it; kept so older history still reads "Quote Approved".
     QUOTE_APPROVED = "quote_approved", "Quote Approved"
     INVOICED = "invoiced", "Invoiced"
+    # Retired: Invoiced goes straight to Mock-up Sent. No job can reach it; kept so older
+    # history still reads "Mock-up In Progress".
     MOCKUP_IN_PROGRESS = "mockup_in_progress", "Mock-up In Progress"
     MOCKUP_SENT = "mockup_sent", "Mock-up Sent"
     MOCKUP_APPROVED = "mockup_approved", "Mock-up Approved"
