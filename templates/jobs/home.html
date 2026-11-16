@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Home · GRAPHNIX tracker{% endblock %}
 {% block content %}
 <h1>Today</h1>
@@ -13,7 +14,12 @@
       {% for c in panel.graphnix %}{% include "jobs/_home_row.html" %}{% empty %}<p class="muted" style="margin:0">Nothing.</p>{% endfor %}
       <h3>Waiting on customer · {{ panel.customer|length }}</h3>
       {% for c in panel.customer %}{% include "jobs/_home_row.html" %}{% empty %}<p class="muted" style="margin:0">Nothing.</p>{% endfor %}
-      {% if panel.title == "Invoices" %}<p class="help">Unpaid amounts appear here once Square is connected.</p>{% endif %}
+      {% if panel.title == "Invoices" %}
+        <p class="help">Owing on open jobs: <strong>{{ owing_cents|money }}</strong> across {{ owing_jobs }} job{{ owing_jobs|pluralize }}
+          · Paid, not started: <strong>{{ paid_not_started }}</strong>
+          {% if invoices_to_link %}· <a href="{% url 'integrations:inbox' %}">{{ invoices_to_link }} invoice{{ invoices_to_link|pluralize }} to link</a>{% endif %}
+          {% if perms.accounts.change_appsetting %}· <a href="{% url 'integrations:payment_gates' %}">Payment gates</a>{% endif %}</p>
+      {% endif %}
     </section>
   {% endfor %}
 </div>

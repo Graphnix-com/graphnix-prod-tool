@@ -49,7 +49,11 @@ _JOB_NUMBER = re.compile(r"(?<![A-Za-z0-9])G-?\s?(\d{3,})(?!\d)", re.IGNORECASE)
 
 
 class SquareError(RuntimeError):
-    pass
+    """Square didn't answer, or answered with an error. Worth retrying."""
+
+
+class SquareAccessError(SquareError):
+    """Square refused the token (401/403): a setup problem that retrying won't fix."""
 
 
 # --- Webhook signature -------------------------------------------------------------
@@ -71,11 +75,12 @@ def api_configured() -> bool:
     return bool(settings.SQUARE_ACCESS_TOKEN)
 
 
-def _get(path: str) -> dict | None:
+def _get(path: str, params: dict | None = None) -> dict | None:
     base = API_BASE.get(settings.SQUARE_ENVIRONMENT, API_BASE["sandbox"])
     try:
         response = requests.get(
             base + path,
+            params=params,
             headers={
                 "Authorization": f"Bearer {settings.SQUARE_ACCESS_TOKEN}",
                 "Square-Version": settings.SQUARE_API_VERSION,
@@ -87,9 +92,41 @@ def _get(path: str) -> dict | None:
         raise SquareError(f"Square didn't answer: {exc.__class__.__name__}") from exc
     if response.status_code == 404:
         return None
+    if response.status_code in (401, 403):
+        raise SquareAccessError(f"Square refused the access token for {path}: {_detail(response)}")
     if not response.ok:
         raise SquareError(f"Square answered {response.status_code} for {path}")
     return response.json()
+
+
+def _detail(response) -> str:
+    try:
+        errors = response.json().get("errors") or [{}]
+        return errors[0].get("detail") or errors[0].get("code") or str(response.status_code)
+    except ValueError:
+        return str(response.status_code)
+
+
+def list_locations() -> list[str]:
+    return [loc["id"] for loc in (_get("/v2/locations") or {}).get("locations", [])]
+
+
+def get_customer(customer_id: str) -> dict | None:
+    return (_get(f"/v2/customers/{customer_id}") or {}).get("customer")
+
+
+def list_invoices(location_id: str, max_pages: int = 50):
+    """Every invoice at a location, newest pages first as Square orders them."""
+    cursor = None
+    for _ in range(max_pages):
+        params = {"location_id": location_id, "limit": 200}
+        if cursor:
+            params["cursor"] = cursor
+        body = _get("/v2/invoices", params) or {}
+        yield from body.get("invoices", [])
+        cursor = body.get("cursor")
+        if not cursor:
+            return
 
 
 def get_invoice(invoice_id: str) -> dict | None:
@@ -193,12 +230,36 @@ def money(cents: int | None, currency: str = "CAD") -> str:
     return text if currency == "CAD" else f"{text} {currency}"
 
 
+def other_location(data: dict) -> str:
+    """The invoice's location, if it isn't the one the tracker reads; else ''."""
+    location = settings.SQUARE_LOCATION_ID
+    theirs = data.get("location_id") or ""
+    return theirs if location and theirs and theirs != location else ""
+
+
+def match_customer(customer, square_customer_id: str, *, how: str) -> bool:
+    """Give a tracker customer its Square customer ID (FR-08), if it has none yet and no
+    other tracker customer has that ID. Never changes an existing link."""
+    if not square_customer_id or customer.square_customer_id:
+        return False
+    if type(customer).objects.filter(square_customer_id=square_customer_id).exists():
+        return False
+    customer.square_customer_id = square_customer_id
+    customer.save(update_fields=["square_customer_id"])
+    record(
+        None,
+        customer,
+        "update",
+        {"square_customer_id": [None, square_customer_id], "matched_by": [None, how]},
+    )
+    return True
+
+
 @transaction.atomic
 def apply(data: dict, *, refunded: int | None = None, event_id: str = "") -> SquareInvoice | None:
     """Store the latest copy of a Square invoice, link it to its job, and bring the job's
     payment status and stage up to date. An older version never overwrites a newer one."""
-    location = settings.SQUARE_LOCATION_ID
-    if location and data.get("location_id") and data["location_id"] != location:
+    if other_location(data):
         return None
     square_id = data["id"]
     invoice = SquareInvoice.objects.select_for_update().filter(square_id=square_id).first()
@@ -212,7 +273,7 @@ def apply(data: dict, *, refunded: int | None = None, event_id: str = "") -> Squ
     for name, value in fields.items():
         setattr(invoice, name, value)
     linked_now = False
-    if invoice.job_id is None and invoice.not_a_job_at is None:
+    if invoice.job_id is None and invoice.not_a_job_at is None and not invoice.match_method:
         job = find_job(data)
         if job is not None:
             invoice.job = job
@@ -230,6 +291,7 @@ def apply(data: dict, *, refunded: int | None = None, event_id: str = "") -> Squ
             job=invoice.job,
         )
     if invoice.job_id:
+        match_customer(invoice.job.customer, invoice.square_customer_id, how="invoice")
         refresh_job(invoice.job, invoice=invoice, event_id=event_id)
     return invoice
 
@@ -326,19 +388,52 @@ def process_event(event_pk: int) -> None:
             event = WebhookEvent.objects.select_for_update().get(pk=event_pk)
             if event.processed_at is not None:
                 return
+            note = ""
             if event.event_type == "invoice.deleted":
                 mark_deleted(event.square_object_id, event_id=event.event_id)
+            elif event.event_type.startswith("customer."):
+                customer_event(event.body)
+            elif latest is not None and other_location(latest):
+                note = (
+                    f"Skipped: the invoice is from location {other_location(latest)}; the "
+                    f"tracker reads only {settings.SQUARE_LOCATION_ID} (SQUARE_LOCATION_ID)."
+                )
             elif latest is not None:
                 apply(latest, refunded=refunded, event_id=event.event_id)
             event.processed_at = timezone.now()
             event.attempts += 1
-            event.last_error = ""
+            event.last_error = note
             event.save(update_fields=["processed_at", "attempts", "last_error"])
+    except SquareAccessError as exc:
+        # A setup problem: retrying won't help. Left unprocessed for the health panel; the
+        # nightly check tries again once the token or location is fixed.
+        log.error("Square event %s: %s", event.event_id, exc)
+        WebhookEvent.objects.filter(pk=event_pk).update(
+            attempts=event.attempts + 1, last_error=str(exc)[:2000]
+        )
     except Exception as exc:
         WebhookEvent.objects.filter(pk=event_pk).update(
             attempts=event.attempts + 1, last_error=str(exc)[:2000]
         )
         raise
+
+
+def customer_event(body: dict) -> None:
+    """customer.created / customer.updated: a tracker customer with the same email and no
+    Square ID yet gets this one (FR-08). Nothing else is copied from Square."""
+    data = (body.get("data") or {}).get("object") or {}
+    sq = data.get("customer") or {}
+    square_id = sq.get("id") or (body.get("data") or {}).get("id") or ""
+    email = (sq.get("email_address") or "").strip()
+    if not square_id or not email:
+        return
+    from apps.customers.models import Customer
+
+    if Customer.objects.filter(square_customer_id=square_id).exists():
+        return
+    candidates = list(Customer.objects.filter(email__iexact=email, square_customer_id="")[:2])
+    if len(candidates) == 1:
+        match_customer(candidates[0], square_id, how="email")
 
 
 def _latest_invoice(event: WebhookEvent) -> tuple[dict | None, int | None]:
@@ -348,6 +443,8 @@ def _latest_invoice(event: WebhookEvent) -> tuple[dict | None, int | None]:
         return None, None
     data = (event.body.get("data") or {}).get("object") or {}
     invoice = data.get("invoice")
+    if invoice and other_location(invoice):
+        return invoice, None  # not ours: don't ask Square, which would refuse anyway
     if api_configured() and event.square_object_id:
         invoice = get_invoice(event.square_object_id) or invoice
     refunded = None

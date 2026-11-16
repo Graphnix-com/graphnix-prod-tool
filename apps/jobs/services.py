@@ -12,7 +12,7 @@ from django.utils import timezone
 from apps.audit.services import record
 from apps.sales.models import Inquiry
 
-from . import flow, workdays
+from . import flow, gates, workdays
 from .flow import InvalidMove
 from .models import HoldReason, Job, JobStatusHistory, Status
 
@@ -170,13 +170,25 @@ def move(job: Job, to_status: str, *, user, note: str = "", source: str = "user"
     _require(user, flow.permission_for(kind, job.status))
     if kind == flow.JUMP:
         note = _require_reason(note)
+    gate = gates.blocking(job, to_status, user)
+    extra = None
+    if gate:
+        # FR-07: only an Admin, and only with a reason.
+        if not user.has_perm(gates.OVERRIDE):
+            raise InvalidMove(
+                f"{gate}." if gate == gates.HIDDEN else f"{gate}. An Admin can override it."
+            )
+        if not (note or "").strip():
+            raise InvalidMove(f"{gate}. Give a reason to move it anyway.")
+        extra = {"payment_gate": [None, gate]}
     return _change_status(
         job,
         to_status,
         user,
-        note.strip(),
+        (note or "").strip(),
         source,
-        "status_change" if kind == flow.FORWARD else "override",
+        "status_change" if kind == flow.FORWARD and not gate else "override",
+        extra,
     )
 
 
@@ -290,7 +302,13 @@ def actions_for(job: Job, user) -> dict:
     nxt = flow.next_status(status)
     forward = None
     if nxt is not None and status in flow.LANE and user.has_perm(flow.LANE[status]):
-        forward = {"to": nxt, "label": Status(nxt).label}
+        gate = gates.blocking(job, nxt, user)
+        forward = {
+            "to": nxt,
+            "label": Status(nxt).label,
+            "gate": gate,
+            "can_override": bool(gate) and user.has_perm(gates.OVERRIDE),
+        }
     jump_targets = []
     if override and status in flow.PATH and status != Status.CLOSED:
         jump_targets = [

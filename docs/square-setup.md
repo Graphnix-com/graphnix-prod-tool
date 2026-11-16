@@ -46,8 +46,39 @@ included: Square signs it with every delivery.
 
 What staff need to know: **put the job's G- number in the Square invoice title.** Square
 gives the invoice its own number, so the G- number is how the tracker finds the job. An
-invoice without one is kept, and waits to be linked by hand (the "Link to job" inbox,
-coming in week 2).
+invoice without one waits under **Invoices to link** in the header (Admin and Manager):
+type the job number and **Link**, or **Not a job** for a sale with no production. A wrong
+match is fixed with **Unlink** in the job's Payment panel (Details tab).
 
-If nothing arrives: **Admin › Square › Webhook events** lists every delivery and any error.
-A refused signature is logged on the server as "Square webhook refused".
+The token, the location and the invoices must all belong to the same Square account. In
+the sandbox, each test account has its own; use the **Default Test Account** for all three.
+
+## D. What runs by itself
+
+- **Payment gates.** By default a job needs **payment in full before Materials ordered**.
+  The button explains why it's blocked; an Admin can still move it, with a reason, and
+  that's in the audit log. Change the gates at **Home › Invoices › Payment gates**. Gates
+  only apply on a server where Square is set up.
+- **Nightly check, 03:00.** Re-reads invoices on open jobs and any updated in the last 3
+  days, retries events that failed, and deletes webhook bodies older than 90 days.
+- **Health panel** (`/ops/health/`): last webhook, events stuck or skipped (with the
+  reason, such as a token that can't read the location), and the last nightly check.
+
+## E. Customers at go-live (once, per server)
+
+Creates or links tracker customers for everyone invoiced in Square in the last 2 years.
+It only reads Square. Try it with `--dry-run` first:
+
+```bash
+docker compose exec web python manage.py import_square_customers --dry-run
+docker compose exec web python manage.py import_square_customers
+```
+
+Customers already linked are skipped, so it's safe to run again. After go-live, a new
+Square customer whose email matches a tracker customer links itself.
+
+## When something's wrong
+
+1. The health panel names most problems.
+2. **Admin › Square › Webhook events** lists every delivery and its error, if any.
+3. A refused signature is logged on the server as "Square webhook refused".

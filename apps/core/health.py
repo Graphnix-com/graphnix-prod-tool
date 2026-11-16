@@ -1,7 +1,7 @@
 """Checks shown on the health panel (NFR-08).
 
 Each check returns a HealthCheck. Later build steps add their own here:
-Step 2 adds the Square webhook backlog, Step 4 adds failed emails.
+Step 2 added Square; Step 4 adds failed emails.
 """
 
 from __future__ import annotations
@@ -96,9 +96,56 @@ def check_backup_pulled(now: datetime | None = None) -> HealthCheck:
     )
 
 
+def check_square_webhooks(now: datetime | None = None) -> HealthCheck:
+    """Step 2 (INT-01, NFR-12): deliveries arriving and being processed."""
+    from apps.integrations.models import WebhookEvent
+
+    now = now or timezone.now()
+    name = "Square webhooks"
+    last = WebhookEvent.objects.order_by("-received_at").first()
+    stuck = WebhookEvent.objects.filter(
+        processed_at__isnull=True, received_at__lt=now - timedelta(minutes=10)
+    )
+    count = stuck.count()
+    if count:
+        first = stuck.exclude(last_error="").order_by("-received_at").first()
+        why = f": {first.last_error[:200]}" if first else ""
+        return HealthCheck(name, FAIL, f"{count} event(s) not processed{why}", last.received_at)
+    skipped = (
+        WebhookEvent.objects.filter(received_at__gte=now - timedelta(days=7))
+        .exclude(last_error="")
+        .order_by("-received_at")
+        .first()
+    )
+    if skipped:
+        return HealthCheck(name, WARN, skipped.last_error[:250], skipped.received_at)
+    if last is None:
+        return HealthCheck(name, WARN, "Nothing received from Square yet")
+    return HealthCheck(name, OK, f"Last: {last.event_type}", last.received_at)
+
+
+def check_square_nightly(now: datetime | None = None) -> HealthCheck:
+    from apps.integrations.nightly import last_result
+
+    now = now or timezone.now()
+    name = "Square nightly check"
+    result = last_result()
+    if not result:
+        return HealthCheck(name, WARN, "Hasn't run yet (runs at 03:00)")
+    at = datetime.fromisoformat(result["at"])
+    if result.get("error"):
+        return HealthCheck(name, FAIL, result["error"], at)
+    detail = f"Checked {result.get('checked', 0)} invoice(s), fixed {result.get('fixed', 0)}"
+    if now - at > timedelta(hours=26):
+        return HealthCheck(name, WARN, f"Last ran {(now - at).days + 1} day(s) ago. {detail}", at)
+    return HealthCheck(name, OK, detail, at)
+
+
 def all_checks() -> list[HealthCheck]:
     checks = [check_database()]
     if checks[0].status == OK:
         checks.append(check_worker())
+        if settings.SQUARE_ENABLED:
+            checks += [check_square_webhooks(), check_square_nightly()]
     checks += [check_backup_created(), check_backup_pulled()]
     return checks

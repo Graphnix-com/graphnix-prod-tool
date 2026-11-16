@@ -86,8 +86,11 @@ def _square_entry(entry: AuditLog) -> Entry:
     changes = entry.changes or {}
     number = (changes.get("invoice") or [None, None])[1] or ""
     label = f"Square invoice {number}".strip()
-    if entry.action == "link":
-        return Entry(entry.at, KIND_EDIT, "Square", f"{label} linked", "")
+    if entry.action in ("link", "unlink"):
+        who = str(entry.actor) if entry.actor else "Square"
+        number = changes.get("invoice") or [None, None]
+        label = f"Square invoice {number[1] or number[0] or ''}".strip()
+        return Entry(entry.at, KIND_EDIT, who, f"{label} {entry.action}ed", "")
     details = [
         f"{name.capitalize()}: {_show(old)} → {_show(new)}"
         for name, (old, new) in changes.items()

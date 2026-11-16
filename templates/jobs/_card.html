@@ -10,5 +10,5 @@
   {% if c.methods %}<br><span class="muted">{{ c.methods|join:", " }}</span>{% endif %}
   {% if show_stage and c.mine %}<br><span class="who">Assigned: {{ c.mine|join:", " }}</span>
   {% elif c.assignees %}<br><span class="who">{{ c.assignees|join:", " }}</span>{% endif %}
-  {% if can_see_money and c.job.payment_status != "unpaid" %}<br><span class="pill">{{ c.job.get_payment_status_display }}</span>{% endif %}
+  {% if can_see_money and c.job.payment_status != "unpaid" %}<br><span class="pill {{ c.job.payment_status }}">{{ c.job.get_payment_status_display }}</span>{% endif %}
 </a>

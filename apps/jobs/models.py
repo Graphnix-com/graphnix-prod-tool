@@ -162,6 +162,13 @@ class Job(models.Model):
         super().save(*args, **kwargs)
 
     @property
+    def balance_cents(self) -> int | None:
+        """What Square says is still owed (money: hidden from Production)."""
+        if self.amount_total_cents is None:
+            return None
+        return self.amount_total_cents - self.amount_paid_cents
+
+    @property
     def display_number(self) -> str:
         """The number staff use: Square's once known, else the internal one."""
         return self.square_number or self.job_number

@@ -47,6 +47,7 @@ def home(request):
             "open_inquiries": Inquiry.objects.filter(
                 status__in=[Inquiry.Status.NEW, Inquiry.Status.IN_REVIEW]
             ).count(),
+            **board.money_summary(),
         },
     )
 
@@ -109,6 +110,10 @@ def job_detail(request, pk):
         "assign_others": any(p.pk != request.user.pk for p in assignable),
         "can_assign": job.status not in assignment.CLOSED,
     }
+    if tab == "details" and context["can_see_money"]:
+        context["invoices"] = list(job.square_invoices.all())
+        if job.amount_total_cents is not None:
+            context["balance"] = job.amount_total_cents - job.amount_paid_cents
     if tab == "timeline":
         context["entries"] = timeline.build(
             job, show_money=request.user.has_perm("jobs.view_money")

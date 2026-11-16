@@ -153,6 +153,28 @@ def test_manage_methods_stations_staff_and_the_shop_floor_pc(as_role):
     check_row(as_role, {"admin"}, probe)
 
 
+def test_link_square_invoices(as_role):
+    """Step 2 (FR-04): the "Link to job" inbox."""
+    url = reverse("integrations:inbox")
+    check_row(as_role, {"admin", "manager"}, lambda c: allowed(c.get(url)))
+
+
+def test_override_a_payment_gate_and_set_the_gates(as_role, job_at, settings):
+    """Step 2 (FR-07): only Admin/Owner, with a reason."""
+    settings.SQUARE_ENABLED = True
+
+    def probe(c):
+        job = job_at(Status.MOCKUP_APPROVED)  # unpaid; paid in full is needed next
+        c.post(
+            reverse("jobs:action", args=[job.pk]),
+            {"action": "move", "to_status": Status.MATERIALS_ORDERED, "note": "Trusted school"},
+        )
+        moved = Job.objects.get(pk=job.pk).status == Status.MATERIALS_ORDERED
+        return moved and allowed(c.get(reverse("integrations:payment_gates")))
+
+    check_row(as_role, {"admin"}, probe)
+
+
 def test_read_the_audit_log(as_role):
     url = reverse("admin:audit_auditlog_changelist")
     check_row(as_role, {"admin"}, lambda c: allowed(c.get(url)))
