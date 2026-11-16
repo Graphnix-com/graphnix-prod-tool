@@ -5,7 +5,7 @@
 <h1>Invoices</h1>
 <p class="sub">Square invoices to link: these matched no job. An invoice links itself when its title has the job's G- number; link these by hand, or set aside a sale with no production.</p>
 <table>
-  <tr><th>Invoice</th><th>Title</th><th>Customer</th><th>Total</th><th>Status</th><th>Updated</th><th>Link to job</th><th></th></tr>
+  <tr><th>Invoice</th><th>Title</th><th>Customer</th><th>Total</th><th>Status</th><th>Updated</th><th>Link To Job</th><th></th></tr>
   {% for inv in invoices %}
     <tr>
       <td>{{ inv.invoice_number|default:"—" }}{% if inv.public_url %} <a href="{{ inv.public_url }}" target="_blank" rel="noopener">Open</a>{% endif %}</td>
@@ -17,7 +17,7 @@
       <td>
         <form method="post" action="{% url 'integrations:invoice_link' inv.pk %}" class="inline">
           {% csrf_token %}
-          <input type="text" name="job_number" placeholder="Job no." aria-label="Job number for invoice {{ inv.invoice_number }}" required style="width:110px">
+          <input type="text" name="job_number" placeholder="Job No." aria-label="Job number for invoice {{ inv.invoice_number }}" required style="width:110px">
           <button type="submit">Link</button>
         </form>
       </td>

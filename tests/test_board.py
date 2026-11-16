@@ -188,14 +188,14 @@ def test_home_almost_due_lists_overdue_and_at_risk_soonest_first(customer):
     make(customer, Status.QUOTE_SENT, "overdue", due_date=date(2026, 11, 10))
     make(customer, Status.IN_PRODUCTION, "in production", due_date=date(2026, 11, 18))
     make(customer, Status.QUOTING, "plenty of time", due_date=date(2026, 12, 20))
-    assert panel(board.home(Flagger(on=TODAY)), "Almost due") == (["at risk"], ["overdue"])
+    assert panel(board.home(Flagger(on=TODAY)), "Almost Due") == (["at risk"], ["overdue"])
 
 
 def test_home_page_renders(client, manager, customer):
     make(customer, Status.QUOTE_SENT, "quote out")
     client.force_login(manager)
     page = client.get("/").content.decode()
-    assert "Waiting on customer" in page and "quote out" in page
+    assert "Waiting On Customer" in page and "quote out" in page
 
 
 # --- Search -----------------------------------------------------------------------

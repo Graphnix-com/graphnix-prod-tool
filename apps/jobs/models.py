@@ -15,20 +15,20 @@ JOB_NUMBER_PREFIX = "G-"
 
 class Status(models.TextChoices):
     QUOTING = "quoting", "Quoting"
-    QUOTE_SENT = "quote_sent", "Quote sent"
-    QUOTE_APPROVED = "quote_approved", "Quote approved"
+    QUOTE_SENT = "quote_sent", "Quote Sent"
+    QUOTE_APPROVED = "quote_approved", "Quote Approved"
     INVOICED = "invoiced", "Invoiced"
-    MOCKUP_IN_PROGRESS = "mockup_in_progress", "Mock-up in progress"
-    MOCKUP_SENT = "mockup_sent", "Mock-up sent"
-    MOCKUP_APPROVED = "mockup_approved", "Mock-up approved"
-    MATERIALS_ORDERED = "materials_ordered", "Materials ordered"
-    READY_FOR_PRODUCTION = "ready_for_production", "Ready for production"
-    IN_PRODUCTION = "in_production", "In production"
+    MOCKUP_IN_PROGRESS = "mockup_in_progress", "Mock-up In Progress"
+    MOCKUP_SENT = "mockup_sent", "Mock-up Sent"
+    MOCKUP_APPROVED = "mockup_approved", "Mock-up Approved"
+    MATERIALS_ORDERED = "materials_ordered", "Materials Ordered"
+    READY_FOR_PRODUCTION = "ready_for_production", "Ready For Production"
+    IN_PRODUCTION = "in_production", "In Production"
     QA = "qa", "QA"
     READY = "ready", "Ready"
-    SHIPPED = "shipped", "Shipped / picked up"
+    SHIPPED = "shipped", "Shipped / Picked Up"
     CLOSED = "closed", "Closed"
-    ON_HOLD = "on_hold", "On hold"
+    ON_HOLD = "on_hold", "On Hold"
     CANCELLED = "cancelled", "Cancelled"
 
 
@@ -43,19 +43,19 @@ class PaymentStatus(models.TextChoices):
 
 
 class HoldReason(models.TextChoices):
-    MOCKUP_CHANGE = "mockup_change", "Customer changing mock-up"
-    PRODUCT_DELAY = "product_delay", "Product delay"
+    MOCKUP_CHANGE = "mockup_change", "Customer Changing Mock-up"
+    PRODUCT_DELAY = "product_delay", "Product Delay"
     OTHER = "other", "Other"
 
 
 class Priority(models.IntegerChoices):
-    SOONER = 1, "Sooner if possible"
+    SOONER = 1, "Sooner If Possible"
     NORMAL = 2, "Normal"
 
 
 class WaitingOn(models.TextChoices):
-    GRAPHNIX = "graphnix", "Waiting on GRAPHNIX"
-    CUSTOMER = "customer", "Waiting on customer"
+    GRAPHNIX = "graphnix", "Waiting On GRAPHNIX"
+    CUSTOMER = "customer", "Waiting On Customer"
 
 
 class Job(models.Model):

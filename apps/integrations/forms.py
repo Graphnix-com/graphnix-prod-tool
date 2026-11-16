@@ -4,7 +4,7 @@ from apps.jobs.flow import PATH
 from apps.jobs.gates import GATEABLE, LEVELS
 from apps.jobs.models import Status
 
-CHOICES = [("", "No gate"), ("deposit", "Deposit first"), ("paid", "Paid in full first")]
+CHOICES = [("", "No Gate"), ("deposit", "Deposit First"), ("paid", "Paid In Full First")]
 
 
 class PaymentGatesForm(forms.Form):

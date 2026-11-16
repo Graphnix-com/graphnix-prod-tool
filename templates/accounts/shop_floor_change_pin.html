@@ -2,7 +2,7 @@
 {% block title %}New PIN · GRAPHNIX tracker{% endblock %}
 {% block content %}
 <div class="card pinpad">
-  <h1>Choose a new PIN</h1>
+  <h1>Choose A New PIN</h1>
   <p class="sub">This PIN was set by an admin. Choose a new 4-digit PIN to keep.</p>
   {% for error in form.non_field_errors %}<p class="fail" role="alert">{{ error }}</p>{% endfor %}
   <form method="post" id="pin-form">

@@ -269,3 +269,30 @@ def test_an_open_tile_starts_with_no_blank_line(client, manager, jobs):
     page = board_page(client, manager)
     more = page.split('<div class="more">')[1].split("</div>", 1)[0]
     assert not more.strip().startswith("<br")
+
+
+# --- Capitals in headers, dropdowns, menus and placeholders -------------------------
+
+
+def test_title_case_on_the_board_and_job_page(client, manager, jobs):
+    client.force_login(manager)
+    board_html = client.get(reverse("jobs:list")).content.decode()
+    for text in (
+        "Assigned To Me",
+        ">At Risk<",
+        ">Due In 7 Days<",
+        'placeholder="Name Or Company"',
+        ">Quote Sent<",
+        ">Ready For Production<",
+        ">Shipped / Picked Up<",
+    ):
+        assert text in board_html, text
+    job = jobs[Status.QUOTING]
+    page = client.get(reverse("jobs:detail", args=[job.pk])).content.decode()
+    for text in (
+        "Items And Tasks",
+        "<summary>Move To Another Stage</summary>",
+        "<summary>Put On Hold</summary>",
+        "<summary>Cancel Job</summary>",
+    ):
+        assert text in page, text

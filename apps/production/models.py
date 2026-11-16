@@ -48,8 +48,8 @@ class TaskStatus(models.TextChoices):
     """Task states for Step 3's station queues. Step 1 creates tasks as Planned."""
 
     BLOCKED = "blocked", "Planned"
-    QUEUED = "queued", "In queue"
-    IN_PROGRESS = "in_progress", "In progress"
+    QUEUED = "queued", "In Queue"
+    IN_PROGRESS = "in_progress", "In Progress"
     PAUSED = "paused", "Paused"
     DONE = "done", "Done"
     REWORK = "rework", "Rework"

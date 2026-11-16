@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block title %}System health · GRAPHNIX tracker{% endblock %}
 {% block content %}
-  <h1>System health <span class="status {{ overall }}">{{ overall }}</span></h1>
+  <h1>System Health <span class="status {{ overall }}">{{ overall }}</span></h1>
   <table>
-    <thead><tr><th>Check</th><th>Status</th><th>Detail</th><th>Last time</th></tr></thead>
+    <thead><tr><th>Check</th><th>Status</th><th>Detail</th><th>Last Time</th></tr></thead>
     <tbody>
       {% for check in checks %}
         <tr>

@@ -1,6 +1,6 @@
 <div class="board-grid">
   <aside class="mine" aria-label="Assigned to me">
-    <h2><span>Assigned to me</span><span class="muted">{{ mine|length }}</span></h2>
+    <h2><span>Assigned To Me</span><span class="muted">{{ mine|length }}</span></h2>
     {% for c in mine %}{% include "jobs/_card.html" with show_stage=True %}{% empty %}<p class="muted">Nothing assigned.</p>{% endfor %}
   </aside>
   <div class="lanes">

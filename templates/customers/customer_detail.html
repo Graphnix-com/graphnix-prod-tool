@@ -21,11 +21,11 @@
     </dl>
     {% if can_see_contacts %}
       {% for contact in customer.contacts.all %}
-        <h2>{% if contact.is_primary %}Main contact{% else %}Contact{% endif %}</h2>
+        <h2>{% if contact.is_primary %}Main Contact{% else %}Contact{% endif %}</h2>
         <p style="margin:0">{{ contact.full_name }} · {{ contact.email|default:"no email" }} · {{ contact.phone|default:"no phone" }}</p>
       {% endfor %}
       {% for a in customer.addresses.all %}
-        <h2>{{ a.get_kind_display }} address</h2>
+        <h2>{{ a.get_kind_display }} Address</h2>
         <p style="margin:0">{{ a.line1 }}{% if a.line2 %}, {{ a.line2 }}{% endif %}<br>{{ a.city }} {{ a.province }} {{ a.postal_code }}</p>
       {% endfor %}
     {% endif %}

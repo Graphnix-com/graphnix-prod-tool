@@ -36,7 +36,7 @@ PATH = [
 
 # Written out from the spec rather than imported from apps.jobs.flow, so the test checks the
 # rules instead of repeating them. Who may move a job forward out of each lane:
-OFFICE_LANE = set(PATH[:8])  # Quoting .. Materials ordered
+OFFICE_LANE = set(PATH[:8])  # Quoting .. Materials Ordered
 PRODUCTION_LANE = {Status.READY_FOR_PRODUCTION, Status.IN_PRODUCTION}
 FINISH_LANE = {Status.QA, Status.READY, Status.SHIPPED}
 FORWARD_ALLOWED = [
@@ -197,7 +197,7 @@ def test_hold_and_release_return_to_the_same_stage(manager, job_at):
     )
     assert job.status == Status.ON_HOLD
     assert job.resume_status == Status.MATERIALS_ORDERED
-    assert job.history.last().note == "Product delay"
+    assert job.history.last().note == "Product Delay"
     job = services.release_hold(job, user=manager)
     assert job.status == Status.MATERIALS_ORDERED
     assert job.resume_status == "" and job.hold_reason_code == ""

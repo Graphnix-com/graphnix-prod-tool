@@ -2,13 +2,13 @@
 {% block title %}Sign in · GRAPHNIX tracker{% endblock %}
 {% block content %}
 <div class="card signin">
-  <h1>Sign in</h1>
+  <h1>Sign In</h1>
   {% if microsoft_enabled %}
     <p class="sub">Office staff: sign in with Microsoft 365.</p>
     <p><a class="button primary wide" href="{% url 'microsoft_start' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Sign in with Microsoft 365</a></p>
   {% endif %}
   {% if show_password %}
-    {% if microsoft_enabled %}<h2>Sign in with a password</h2>{% endif %}
+    {% if microsoft_enabled %}<h2>Sign In With A Password</h2>{% endif %}
     <form method="post">
       {% csrf_token %}
       {% include "partials/form_fields.html" %}
@@ -18,7 +18,7 @@
   {% else %}
     <p class="help"><a href="?password=1{% if next %}&amp;next={{ next|urlencode }}{% endif %}">Sign in with a password instead</a></p>
   {% endif %}
-  <h2>Shop floor</h2>
+  <h2>Shop Floor</h2>
   <p><a class="button wide" href="{% url 'shop_floor' %}">Shop-floor sign-in (name and PIN)</a></p>
 </div>
 {% endblock %}
