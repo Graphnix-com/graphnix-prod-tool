@@ -8,6 +8,7 @@
   {% if job.square_number %}· internal {{ job.job_number }}{% endif %}
   · Due {% if job.due_date %}{{ job.due_date|date:"D j M Y" }}{% else %}<span class="muted">not set</span>{% endif %}
   {% if job.priority == 1 %}<span class="pill sooner">Sooner if possible</span>{% endif %}
+  {% if job.online_order %}<span class="pill online{% if job.status == "mockup_approved" %} new{% endif %}">{{ job.online_order }}</span>{% endif %}
 </p>
 
 <div class="card">

@@ -1,5 +1,5 @@
 <details class="jobcard {{ c.flag|default:'' }}" data-job="{{ c.job.pk }}">
-  <summary><span class="num">{{ c.job.display_number }}</span> {{ c.job.title|truncatechars:60 }}</summary>
+  <summary><span class="num">{{ c.job.display_number }}</span> {% if c.job.online_order %}<span class="pill online{% if c.job.status == "mockup_approved" %} new{% endif %}">{{ c.job.online_order }}</span>{% endif %} {{ c.job.title|truncatechars:60 }}</summary>
   <div class="more">
     {% if c.job.priority == 1 or c.job.waiting_on == "customer" or show_stage %}
       <div>{% if c.job.priority == 1 %}<span class="pill sooner">Sooner</span>{% endif %}

@@ -115,6 +115,8 @@ become jobs. If the stores show under another name, set it in `.env`, comma-sepa
 `SQUARE_STORE_SOURCES=Square Online,Team Shop`.
 
 Each job takes the store order's number as its job number (shown instead of a G- number).
+It carries a **New Online Order** badge on the board, Home, search and the job page while it
+waits at Mock-Up Approved; once someone moves it on, the badge reads **Online Order**.
 
 The webhook subscription needs `order.created` and `order.updated` (section A). The nightly
 check also reads store orders updated in the last 3 days, so a missed webhook still makes

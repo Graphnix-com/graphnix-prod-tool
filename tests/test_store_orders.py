@@ -304,6 +304,26 @@ def test_production_sees_the_job_but_no_money(client, make_user, square_on):
     assert not any("Payment" in e.title for e in timeline.build(job))
 
 
+def test_a_new_online_order_is_badged_until_someone_moves_it_on(client, manager, square_on):
+    deliver(square_on, order())
+    job = Job.objects.get()
+    assert job.online_order == "New Online Order"
+    client.force_login(manager)
+    for url in (reverse("jobs:list"), reverse("jobs:detail", args=[job.pk])):
+        assert "New Online Order" in client.get(url).content.decode()
+    job = services.move(job, Status.MATERIALS_ORDERED, user=manager)
+    assert job.online_order == "Online Order"
+    html = client.get(reverse("jobs:detail", args=[job.pk])).content.decode()
+    assert "New Online Order" not in html and "Online Order" in html
+
+
+def test_other_jobs_have_no_online_badge(client, manager, job_at):
+    job = job_at(Status.MOCKUP_APPROVED)
+    assert job.online_order == ""
+    client.force_login(manager)
+    assert "Online Order" not in client.get(reverse("jobs:list")).content.decode()
+
+
 def test_a_long_product_name_is_cut_at_a_word():
     name = "SPECIAL. Youth and Unisex Hoodie. Tackle twill and embroidery full front. Free toque."
     items = [{"description": name}, {"description": name}]

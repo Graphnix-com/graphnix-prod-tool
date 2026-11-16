@@ -174,6 +174,15 @@ class Job(models.Model):
         return self.amount_total_cents - self.amount_paid_cents
 
     @property
+    def online_order(self) -> str:
+        """ "New Online Order" for a store order nobody has moved on from Mock-Up Approved
+        (where it arrives, already paid, past quoting and invoicing); "Online Order" after
+        that; "" for any other job."""
+        if self.source != Channel.ONLINE_STORE:
+            return ""
+        return "New Online Order" if self.status == Status.MOCKUP_APPROVED else "Online Order"
+
+    @property
     def display_number(self) -> str:
         """The number staff use: Square's once known, else the internal one."""
         return self.square_number or self.job_number

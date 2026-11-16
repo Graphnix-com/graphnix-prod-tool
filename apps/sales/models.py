@@ -11,6 +11,7 @@ class Channel(models.TextChoices):
     PHONE = "phone", "Phone"
     WALK_IN = "walk_in", "Walk-in"
     ONLINE_STORE = "online_store", "Online Store"
+    WEBSITE = "website", "Website Form"
     OTHER = "other", "Other"
 
 
