@@ -15,7 +15,7 @@
     <span class="status">{{ job.get_status_display }}</span>
     {% if job.waiting_on == "customer" %}<span class="pill customer">Waiting on customer</span>{% endif %}
     {% if job.status == "on_hold" %}<span class="muted">· {{ job.get_hold_reason_code_display }}{% if job.hold_reason %}: {{ job.hold_reason }}{% endif %} · returns to {{ job.get_resume_status_display }}</span>{% endif %}
-    {% if job.status == "cancelled" %}<span class="muted">· {{ job.cancel_reason }}</span>{% endif %}
+    {% if job.status == "cancelled" and job.cancel_reason %}<span class="muted">· {{ job.cancel_reason }}</span>{% endif %}
   </p>
   <div class="actions">
     {% if actions.forward %}
@@ -76,7 +76,7 @@
       <details class="action"><summary>Cancel job</summary>
         <form method="post" action="{% url 'jobs:action' job.pk %}">
           {% csrf_token %}<input type="hidden" name="action" value="cancel">
-          <label>Reason</label><input type="text" name="note" required>
+          <label>Reason <span class="muted">(optional)</span></label><input type="text" name="note">
           <p><button type="submit" class="danger">Cancel this job</button></p>
         </form>
       </details>

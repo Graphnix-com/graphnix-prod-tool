@@ -233,7 +233,7 @@ def cancel(job: Job, *, user, note: str) -> Job:
     _require(user, flow.OVERRIDE)
     if job.status not in flow.CANCELLABLE:
         raise InvalidMove(f"A job at {job.get_status_display()} can't be cancelled.")
-    note = _require_reason(note)
+    note = (note or "").strip()  # optional
     if job.status != Status.ON_HOLD:
         job.resume_status = job.status
     job.hold_reason_code = ""
