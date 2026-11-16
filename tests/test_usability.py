@@ -244,3 +244,28 @@ def test_the_header_says_invoices_for_the_office_only(client, manager, make_user
     client.force_login(make_user("production"))
     page = client.get(reverse("jobs:list")).content.decode()
     assert reverse("integrations:inbox") not in page
+
+
+# --- "Requests", not "Inquiries" ----------------------------------------------------
+
+
+def test_requests_everywhere_people_look(client, manager):
+    client.force_login(manager)
+    for url in (reverse("home"), reverse("sales:list"), reverse("sales:new")):
+        page = client.get(url).content.decode()
+        visible = page.split("<body>")[1]
+        assert "Requests" in visible or "request" in visible
+        for word in ("Inquiry", "Inquiries", " inquiry", " inquiries", "inquir("):
+            assert word not in visible.replace("_inquiry", "").replace("inquiry.", ""), (url, word)
+
+
+def test_old_inquiry_links_still_work(client, manager):
+    client.force_login(manager)
+    response = client.get("/inquiries/new/")
+    assert response.status_code == 301 and response["Location"] == reverse("sales:new")
+
+
+def test_an_open_tile_starts_with_no_blank_line(client, manager, jobs):
+    page = board_page(client, manager)
+    more = page.split('<div class="more">')[1].split("</div>", 1)[0]
+    assert not more.strip().startswith("<br")

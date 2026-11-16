@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Inquiries · GRAPHNIX tracker{% endblock %}
+{% block title %}Requests · GRAPHNIX tracker{% endblock %}
 {% block content %}
 <div style="display:flex;justify-content:space-between;align-items:center">
   <div>
-    <h1>{% if show_all %}All inquiries{% else %}Open inquiries{% endif %}</h1>
+    <h1>{% if show_all %}All requests{% else %}Open requests{% endif %}</h1>
     <p class="sub">{% if show_all %}Newest first. <a href="?">Open only</a>{% else %}Oldest first. <a href="?show=all">Show all</a>{% endif %}</p>
   </div>
-  {% if perms.sales.add_inquiry %}<a class="button primary" href="{% url 'sales:new' %}">New inquiry</a>{% endif %}
+  {% if perms.sales.add_inquiry %}<a class="button primary" href="{% url 'sales:new' %}">New request</a>{% endif %}
 </div>
 <table>
   <tr><th>Received</th><th>Channel</th><th>From</th><th>What</th><th>Status</th></tr>
@@ -19,7 +19,7 @@
       <td>{{ i.get_status_display }}{% if i.status == "converted" and i.job %} · <a href="{% url 'jobs:detail' i.job.pk %}">{{ i.job.display_number }}</a>{% endif %}</td>
     </tr>
   {% empty %}
-    <tr><td colspan="5" class="muted">No inquiries waiting.</td></tr>
+    <tr><td colspan="5" class="muted">No requests waiting.</td></tr>
   {% endfor %}
 </table>
 {% endblock %}

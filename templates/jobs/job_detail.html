@@ -197,7 +197,7 @@
       <dt>Due date</dt><dd>{{ job.due_date|date:"D j M Y"|default:"—" }}{% if job.suggested_due_date and job.suggested_due_date != job.due_date %} <span class="muted">(14-day queue suggests {{ job.suggested_due_date|date:"D j M" }})</span>{% endif %}</dd>
       <dt>Fulfilment</dt><dd>{{ job.get_fulfillment_method_display|default:"—" }}</dd>
       <dt>NAS folder</dt><dd>{% if job.shared_drive_path %}<span class="copy" id="nas-path">{{ job.shared_drive_path }}</span> <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('nas-path').textContent)">Copy</button>{% else %}—{% endif %}</dd>
-      <dt>Source</dt><dd>{{ job.get_source_display|default:"—" }}{% if job.inquiry and perms.sales.view_inquiry %} · <a href="{% url 'sales:detail' job.inquiry.pk %}">inquiry</a>{% endif %}</dd>
+      <dt>Source</dt><dd>{{ job.get_source_display|default:"—" }}{% if job.inquiry and perms.sales.view_inquiry %} · <a href="{% url 'sales:detail' job.inquiry.pk %}">request</a>{% endif %}</dd>
       <dt>Automatic emails</dt><dd>{% if job.notifications_opt_out %}Off for this job{% else %}On{% endif %}</dd>
     </dl>
     {% if perms.jobs.change_job %}<p style="margin-bottom:0"><a class="button" href="{% url 'jobs:edit' job.pk %}">Edit details</a></p>{% endif %}

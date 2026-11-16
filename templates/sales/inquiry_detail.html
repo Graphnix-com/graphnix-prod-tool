@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Inquiry · GRAPHNIX tracker{% endblock %}
+{% block title %}Request · GRAPHNIX tracker{% endblock %}
 {% block content %}
-<p class="muted" style="margin:0"><a href="{% url 'sales:list' %}">Inquiries</a> /</p>
-<h1>{{ inquiry.subject|default:"Inquiry" }}</h1>
+<p class="muted" style="margin:0"><a href="{% url 'sales:list' %}">Requests</a> /</p>
+<h1>{{ inquiry.subject|default:"Request" }}</h1>
 <p class="sub">{{ inquiry.get_channel_display }} · received {{ inquiry.received_at|date:"D j M Y, g:i a" }} · {{ inquiry.get_status_display }}</p>
 
 <div class="card">
@@ -38,7 +38,7 @@
     {% if perms.customers.add_customer %}
       <form method="post" action="{% url 'sales:customer' inquiry.pk %}" style="margin-top:10px">
         {% csrf_token %}<input type="hidden" name="customer" value="new">
-        <button type="submit">Create a new customer from this inquiry</button>
+        <button type="submit">Create a new customer from this request</button>
       </form>
     {% endif %}
   </div>
@@ -53,8 +53,8 @@
     </form>
   {% endif %}
 
-  <form method="post" action="{% url 'sales:decline' inquiry.pk %}" onsubmit="return confirm('Decline this inquiry?')">
-    {% csrf_token %}<button type="submit" class="danger">Decline inquiry</button>
+  <form method="post" action="{% url 'sales:decline' inquiry.pk %}" onsubmit="return confirm('Decline this request?')">
+    {% csrf_token %}<button type="submit" class="danger">Decline request</button>
   </form>
 {% endif %}
 {% endblock %}

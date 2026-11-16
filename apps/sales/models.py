@@ -55,7 +55,8 @@ class Inquiry(models.Model):
 
     class Meta:
         db_table = "inquiry"
-        verbose_name_plural = "inquiries"
+        verbose_name = "request"
+        verbose_name_plural = "requests"
         ordering = ["received_at"]
         constraints = [
             models.UniqueConstraint(

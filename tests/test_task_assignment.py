@@ -179,4 +179,4 @@ def test_the_board_card_shows_who_has_the_work(client, people, task):
     assignment.assign(task, people["rommel"], user=people["jenn"])
     client.force_login(people["isaac"])
     page = client.get(reverse("jobs:list")).content.decode()
-    assert '<span class="who">Rommel</span>' in page
+    assert '<div class="who">Rommel</div>' in page
