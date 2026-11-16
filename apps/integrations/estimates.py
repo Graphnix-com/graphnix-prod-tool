@@ -8,7 +8,7 @@ tracker reads those, and only those, from the mailbox in ESTIMATE_MAILBOX:
   The job is the one already carrying that number; else the customer's one job waiting at
   Quoting; else, if the customer has none, a new job. Anything less clear waits under
   Invoices for someone to link.
-- accepted: the job moves to Quote Approved. Square turns an accepted estimate into an
+- accepted: the job moves to Invoiced, since Square turns an accepted estimate into an
   invoice at once; that invoice links to the job by customer and total (`job_for_invoice`),
   so no number is needed in its title.
 """
@@ -193,7 +193,7 @@ def attach(estimate: SquareEstimate, job, *, how: str, user=None) -> None:
     if estimate.sent_at:
         services.square_quote_sent(job, note=f"Square estimate {estimate.number} sent")
     if estimate.accepted_at:
-        services.square_quote_approved(job, note=f"Square estimate {estimate.number} accepted")
+        services.square_estimate_accepted(job, note=f"Square estimate {estimate.number} accepted")
         link_invoice(estimate)
 
 
@@ -227,7 +227,7 @@ def accepted(parsed: dict, *, at) -> SquareEstimate:
         estimate.total_cents = parsed["total_cents"]
     estimate.save()
     if estimate.job_id:
-        services.square_quote_approved(
+        services.square_estimate_accepted(
             estimate.job, note=f"Square estimate {estimate.number} accepted"
         )
         link_invoice(estimate)

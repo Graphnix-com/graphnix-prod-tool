@@ -146,9 +146,9 @@ addresses, and keeps only what it reads from them, never the email itself.
   number; else the customer's one job at Quoting; else, if the customer has none, a new
   job (and a new customer if the email is new). If it's less clear than that, the estimate
   waits under **Invoices › Estimates** to be linked, made into a job, or set aside.
-- **Accepted:** the job moves to **Quote Approved**. Square turns an accepted estimate
-  into an invoice at once; that invoice links to the job by customer and total, and the job
-  moves to Invoiced as usual.
+- **Accepted:** the job moves to **Invoiced** (there's no separate Quote Approved stage:
+  Square turns an accepted estimate into an invoice at once). That invoice links to the
+  job by customer and total and brings its payment status.
 - **Follow up:** quotes sent 7 or more days ago with no answer are listed on Home, in the
   Quotes panel. Change the 7 with the app setting `quote_follow_up_days` (Admin › App
   settings).

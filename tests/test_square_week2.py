@@ -150,7 +150,7 @@ def test_an_unmatched_invoice_waits_in_the_inbox(client, manager, unmatched):
 
 
 def test_linking_by_hand_updates_the_job(client, manager, unmatched, job):
-    job.status = Status.QUOTE_APPROVED
+    job.status = Status.QUOTE_SENT
     job.save()
     client.force_login(manager)
     client.post(reverse("integrations:invoice_link", args=[unmatched.pk]), {"job_number": "G-1042"})

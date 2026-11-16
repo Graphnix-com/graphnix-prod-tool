@@ -13,7 +13,7 @@ from .models import HoldReason, Job, PaymentStatus, Status, WaitingOn
 
 # Board rows follow the lanes of the state machine diagram.
 LANES = [
-    ("Sales", [Status.QUOTING, Status.QUOTE_SENT, Status.QUOTE_APPROVED, Status.INVOICED]),
+    ("Sales", [Status.QUOTING, Status.QUOTE_SENT, Status.INVOICED]),
     (
         "Pre-production",
         [
@@ -185,7 +185,7 @@ def board(
 # --- Home page --------------------------------------------------------------------
 
 HOME_PANELS = [
-    ("Quotes", [Status.QUOTING, Status.QUOTE_SENT, Status.QUOTE_APPROVED]),
+    ("Quotes", [Status.QUOTING, Status.QUOTE_SENT]),
     (
         "Mock-ups",
         [Status.MOCKUP_IN_PROGRESS, Status.MOCKUP_SENT, Status.MOCKUP_APPROVED],
@@ -268,7 +268,7 @@ def money_summary() -> dict:
     ]
     not_started = open_jobs.filter(
         payment_status=PaymentStatus.PAID,
-        status__in=[Status.QUOTING, Status.QUOTE_SENT, Status.QUOTE_APPROVED, Status.INVOICED],
+        status__in=[Status.QUOTING, Status.QUOTE_SENT, Status.INVOICED],
     )
     return {
         "owing_cents": sum(owing),

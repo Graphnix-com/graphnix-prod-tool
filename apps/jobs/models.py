@@ -16,6 +16,8 @@ JOB_NUMBER_PREFIX = "G-"
 class Status(models.TextChoices):
     QUOTING = "quoting", "Quoting"
     QUOTE_SENT = "quote_sent", "Quote Sent"
+    # Retired: merged into Invoiced (Square invoices an accepted estimate at once). No job
+    # can reach it; kept so older history still reads "Quote Approved".
     QUOTE_APPROVED = "quote_approved", "Quote Approved"
     INVOICED = "invoiced", "Invoiced"
     MOCKUP_IN_PROGRESS = "mockup_in_progress", "Mock-up In Progress"

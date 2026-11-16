@@ -14,8 +14,7 @@ from .models import Status
 PATH = [
     Status.QUOTING,
     Status.QUOTE_SENT,
-    Status.QUOTE_APPROVED,
-    Status.INVOICED,
+    Status.INVOICED,  # also "quote approved": Square invoices an accepted estimate at once
     Status.MOCKUP_IN_PROGRESS,
     Status.MOCKUP_SENT,
     Status.MOCKUP_APPROVED,
@@ -30,7 +29,7 @@ PATH = [
 
 START_STATUSES = {Status.QUOTING, Status.INVOICED}
 # A sent Square invoice moves a job from these to Invoiced (FR-06).
-BEFORE_INVOICED = {Status.QUOTING, Status.QUOTE_SENT, Status.QUOTE_APPROVED}
+BEFORE_INVOICED = {Status.QUOTING, Status.QUOTE_SENT}
 
 OFFICE = "jobs.move_office_stages"
 PRODUCTION = "jobs.move_production_stages"
@@ -42,7 +41,6 @@ REOPEN = "jobs.reopen_cancelled_job"
 LANE = {
     Status.QUOTING: OFFICE,
     Status.QUOTE_SENT: OFFICE,
-    Status.QUOTE_APPROVED: OFFICE,
     Status.INVOICED: OFFICE,
     Status.MOCKUP_IN_PROGRESS: OFFICE,
     Status.MOCKUP_SENT: OFFICE,

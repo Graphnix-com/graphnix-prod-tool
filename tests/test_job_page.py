@@ -314,7 +314,7 @@ def test_move_button_posts_through_the_rules(client, manager, make_user, job_at)
     client.force_login(make_user("production"))
     response = client.post(
         reverse("jobs:action", args=[job.pk]),
-        {"action": "move", "to_status": "quote_approved"},
+        {"action": "move", "to_status": "invoiced"},
         follow=True,
     )
     assert "permission" in response.content.decode()
