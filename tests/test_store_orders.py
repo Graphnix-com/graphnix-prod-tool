@@ -262,6 +262,27 @@ def test_the_import_lists_sources_and_imports(square_on):
     assert "→ job" in out.getvalue() and Job.objects.count() == 1
 
 
+def test_go_live_imports_every_open_store_order(square_on, monkeypatch):
+    for n in range(25):  # more than --latest allows
+        square_on["orders"][f"ord-{n}"] = order(id=f"ord-{n}", reference=str(2000 + n))
+    square_on["orders"]["done"] = order(id="done", state="COMPLETED", reference="3000")
+    square_on["orders"]["pos-1"] = order(id="pos-1", source="Square Point of Sale", reference="")
+    asked = {}
+
+    def search(loc, *, updated_since, states=None, **kw):
+        asked["states"] = states
+        return iter([o for o in square_on["orders"].values() if o["state"] in (states or [])])
+
+    monkeypatch.setattr(square, "search_orders", search)
+    out = StringIO()
+    call_command("import_square_orders", "--open", "--dry-run", stdout=out)
+    assert "25 order(s) (dry run" in out.getvalue() and not Job.objects.exists()
+    call_command("import_square_orders", "--open", stdout=StringIO())
+    assert asked["states"] == ["OPEN"] and Job.objects.count() == 25
+    call_command("import_square_orders", "--open", stdout=StringIO())  # safe to repeat
+    assert Job.objects.count() == 25
+
+
 # --- Who sees what ------------------------------------------------------------------
 
 

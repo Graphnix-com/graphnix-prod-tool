@@ -28,7 +28,7 @@ class Command(BaseCommand):
             raise CommandError("Square isn't set up here (SQUARE_ACCESS_TOKEN).")
         try:
             nightly.check_location()
-            counts = nightly.import_customers(years=years, dry_run=dry_run)
+            counts = nightly.import_customers(years=years, dry_run=dry_run, progress=self._say)
         except square.SquareError as exc:
             raise CommandError(str(exc)) from exc
         prefix = "Would" if dry_run else "Done:"
@@ -37,3 +37,7 @@ class Command(BaseCommand):
             f"{counts['already_linked']} already linked, {counts['matched']} matched by email, "
             f"{counts['created']} {'to create' if dry_run else 'created'}."
         )
+
+    def _say(self, text):
+        self.stdout.write(text)
+        self.stdout.flush()
