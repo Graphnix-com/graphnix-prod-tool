@@ -20,11 +20,31 @@ def customer_list(request):
             | Q(email__icontains=query)
             | Q(phone__icontains=query)
         )
+    groups = by_name(customers)
     return render(
         request,
         "customers/customer_list.html",
-        {"customers": customers[:200], "query": query},
+        {"groups": groups[:LIST_LIMIT], "more": len(groups) > LIST_LIMIT, "query": query},
     )
+
+
+LIST_LIMIT = 200
+
+
+def by_name(customers) -> list[dict]:
+    """One entry per name: people with the same name (ignoring case and spacing) but
+    separate records, such as one person under two emails, share a row. Their records are
+    sorted by email, A to Z; any without an email come last."""
+    groups: dict[str, dict] = {}
+    for c in customers:
+        key = " ".join(c.display_name.split()).casefold()
+        group = groups.setdefault(key, {"name": c.display_name, "customers": []})
+        group["customers"].append(c)
+    for group in groups.values():
+        group["customers"].sort(key=lambda c: (not c.email, c.email.casefold(), c.pk))
+        companies = {c.company_name for c in group["customers"]}
+        group["company"] = companies.pop() if len(companies) == 1 else ""
+    return list(groups.values())
 
 
 @login_required

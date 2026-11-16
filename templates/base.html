@@ -95,6 +95,9 @@
     .jobcard summary::-webkit-details-marker { display: none; }
     .jobcard summary::before { content: "▸ "; color: var(--quiet); }
     .jobcard[open] summary::before { content: "▾ "; }
+    details.emails summary { cursor: pointer; color: var(--accent); }
+    details.emails ul { list-style: none; margin: 4px 0 0; padding: 0; }
+    details.emails li { margin: 2px 0; }
     .jobcard .more { margin-top: 3px; padding-top: 3px; border-top: 1px solid var(--line); }
     .jobcard .more > div { margin: 1px 0; }
     .jobcard .open { font-weight: 600; }
