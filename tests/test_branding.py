@@ -1,4 +1,4 @@
-"""Logo, links between the sign-in pages, and the way back from the admin site."""
+"""Logo, links between the sign-in pages, and the way back from the admin site (the logo)."""
 
 import pytest
 from django.urls import reverse
@@ -22,4 +22,4 @@ def test_admin_links_back_to_the_app(client, make_user):
     admin.save()
     client.force_login(admin)
     page = client.get(reverse("admin:index")).content.decode()
-    assert "Back to the app" in page and "GRAPHNIX tracker admin" in page
+    assert f'<a href="{reverse("home")}" class="brand">' in page and "GRAPHNIX ADMIN" in page
