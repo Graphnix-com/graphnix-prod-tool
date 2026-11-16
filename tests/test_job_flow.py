@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from django.core.exceptions import PermissionDenied
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.models import AppSetting
@@ -231,9 +232,10 @@ def test_cancel_from_hold_remembers_the_stage_before_the_hold(admin_user, manage
     assert job.status == Status.MOCKUP_SENT
 
 
-def test_cancel_needs_a_reason_and_not_after_shipping(manager, job_at):
-    with pytest.raises(InvalidMove, match="reason"):
-        services.cancel(job_at(Status.QUOTING), user=manager, note="")
+def test_cancel_without_a_reason_but_not_after_shipping(manager, job_at):
+    job = services.cancel(job_at(Status.QUOTING), user=manager, note="  ")
+    assert job.status == Status.CANCELLED and job.cancel_reason == ""
+    assert job.history.get(to_status=Status.CANCELLED).note == ""
     with pytest.raises(InvalidMove):
         services.cancel(job_at(Status.SHIPPED), user=manager, note="x")
 
@@ -268,3 +270,14 @@ def test_closing_stamps_closed_at(manager, job_at):
 )
 def test_waiting_on(status, hold_code, want, job_at):
     assert job_at(status, hold_reason_code=hold_code).waiting_on == want
+
+
+def test_cancel_from_the_job_page_without_a_reason(client, manager, job_at):
+    job = job_at(Status.QUOTING)
+    client.force_login(manager)
+    page = client.get(reverse("jobs:detail", args=[job.pk])).content.decode()
+    form = page.split('value="cancel">')[1].split("</form>")[0]
+    assert "required" not in form
+    client.post(reverse("jobs:action", args=[job.pk]), {"action": "cancel", "note": ""})
+    job.refresh_from_db()
+    assert job.status == Status.CANCELLED
