@@ -2,7 +2,7 @@
 {% block title %}{% if customer.pk %}Edit {{ customer.display_name }}{% else %}New customer{% endif %}{% endblock %}
 {% block content %}
 <p class="muted" style="margin:0"><a href="{% url 'customers:list' %}">Customers</a> /</p>
-<h1>{% if customer.pk %}Edit {{ customer.display_name }}{% else %}New customer{% endif %}</h1>
+<h1>{% if customer.pk %}Edit {{ customer.display_name }}{% else %}New Customer{% endif %}</h1>
 <form method="post">
   {% csrf_token %}
   <div class="card">{% include "partials/form_fields.html" with form=form %}</div>

@@ -244,7 +244,7 @@ def test_timeline_lists_moves_notes_and_edits_newest_first(manager, customer):
         "Job details changed",
         "Task added: Embroidery",
         "Note",
-        "Quoting → Quote sent",
+        "Quoting → Quote Sent",
         "Item 1 added: Gildan 5000 tee",
         "Created at Quoting",
     ]
@@ -277,7 +277,7 @@ def test_production_sees_the_job_without_money_or_contacts(client, make_user, jo
     page = client.get(reverse("jobs:detail", args=[job.pk]) + "?tab=details").content.decode()
     assert "Payment" not in page
     assert "pat@example.com" not in page
-    assert "Move to In production" in page
+    assert "Move to In Production" in page
     assert "Put on hold" not in page and "Edit details" not in page
 
 

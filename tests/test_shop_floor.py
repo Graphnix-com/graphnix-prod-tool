@@ -64,7 +64,7 @@ def test_name_and_pin_signs_in_and_actions_are_theirs(pc, rommel):
 def test_the_pin_only_works_on_the_shop_floor_pc(client, rommel):
     response = pin(client, rommel, "2468")
     assert response.status_code == 403
-    assert "isn't the shop-floor PC" in response.content.decode()
+    assert "Isn't The Shop-floor PC" in response.content.decode()
     assert signed_in_as(client) is None
     assert client.get(reverse("shop_floor")).status_code == 403
 

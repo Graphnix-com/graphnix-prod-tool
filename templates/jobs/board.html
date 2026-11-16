@@ -20,7 +20,7 @@
       {% for u in assignees %}<option value="{{ u.pk }}" {% if filters.assignee == u.pk|stringformat:"s" %}selected{% endif %}>{{ u }}</option>{% endfor %}
     </select></div>
   <div><label for="f-customer">Customer</label>
-    <input type="text" name="customer" id="f-customer" value="{{ filters.customer }}" placeholder="Name or company"></div>
+    <input type="text" name="customer" id="f-customer" value="{{ filters.customer }}" placeholder="Name Or Company"></div>
   {% if can_see_money %}
     <div><label for="f-payment">Payment</label>
       <select name="payment" id="f-payment"><option value="">Any</option>

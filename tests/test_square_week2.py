@@ -52,7 +52,7 @@ def test_the_default_gate_is_paid_in_full_before_materials_ordered():
 
 
 def test_an_unpaid_job_cant_reach_materials_ordered(job, manager):
-    with pytest.raises(InvalidMove, match="Needs payment in full before Materials ordered: Unpaid"):
+    with pytest.raises(InvalidMove, match="Needs payment in full before Materials Ordered: Unpaid"):
         services.move(job, Status.MATERIALS_ORDERED, user=manager)
 
 
@@ -116,7 +116,7 @@ def test_the_job_page_shows_the_gate(client, job, manager, admin_user):
     url = reverse("jobs:detail", args=[job.pk])
     client.force_login(manager)
     page = client.get(url).content.decode()
-    assert "disabled" in page and "Needs payment in full before Materials ordered" in page
+    assert "disabled" in page and "Needs payment in full before Materials Ordered" in page
     client.force_login(admin_user)
     page = client.get(url).content.decode()
     assert "Override and move" in page

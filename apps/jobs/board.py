@@ -45,9 +45,9 @@ CANCELLED_SHOWN_DAYS = 30
 
 DUE_FILTERS = [
     ("overdue", "Overdue"),
-    ("at_risk", "At risk"),
-    ("this_week", "Due in 7 days"),
-    ("none", "No due date"),
+    ("at_risk", "At Risk"),
+    ("this_week", "Due In 7 Days"),
+    ("none", "No Due Date"),
 ]
 
 
@@ -233,7 +233,7 @@ def home(flagger: Flagger | None = None) -> list[Panel]:
         if c.flag in (OVERDUE, AT_RISK)
     ]
     due_soon.sort(key=lambda c: (c.job.due_date, c.job.priority))
-    panels.append(_split("Almost due", due_soon))
+    panels.append(_split("Almost Due", due_soon))
     return panels
 
 

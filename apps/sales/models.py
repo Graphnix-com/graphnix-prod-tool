@@ -10,7 +10,7 @@ class Channel(models.TextChoices):
     EMAIL = "email", "Email"
     PHONE = "phone", "Phone"
     WALK_IN = "walk_in", "Walk-in"
-    ONLINE_STORE = "online_store", "Online store"
+    ONLINE_STORE = "online_store", "Online Store"
     OTHER = "other", "Other"
 
 
@@ -19,8 +19,8 @@ class Inquiry(models.Model):
 
     class Status(models.TextChoices):
         NEW = "new", "New"
-        IN_REVIEW = "in_review", "In review"
-        CONVERTED = "converted", "Converted to job"
+        IN_REVIEW = "in_review", "In Review"
+        CONVERTED = "converted", "Converted To Job"
         DECLINED = "declined", "Declined"
 
     channel = models.CharField(max_length=20, choices=Channel.choices)

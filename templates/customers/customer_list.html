@@ -6,7 +6,7 @@
   {% if perms.customers.add_customer %}<a class="button primary" href="{% url 'customers:new' %}">New customer</a>{% endif %}
 </div>
 <form method="get" style="display:flex;gap:8px;max-width:600px;margin:12px 0">
-  <input type="text" name="q" value="{{ query }}" placeholder="Search name, company, email or phone">
+  <input type="text" name="q" value="{{ query }}" placeholder="Search Name, Company, Email Or Phone">
   <button type="submit">Search</button>
 </form>
 <table>

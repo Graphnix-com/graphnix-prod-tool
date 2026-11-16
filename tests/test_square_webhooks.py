@@ -367,7 +367,7 @@ def test_payments_are_on_the_timeline_for_money_roles_only(job):
     assert "Square invoice 000123 linked" in with_money
     without = timeline.build(job)
     assert not any("Payment" in e.title or "$" in e.detail for e in without)
-    assert any(e.title == "Quote approved → Invoiced" for e in without)
+    assert any(e.title == "Quote Approved → Invoiced" for e in without)
 
 
 def test_production_sees_no_money_on_the_job_page(client, job, make_user):

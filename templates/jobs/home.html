@@ -10,9 +10,9 @@
   {% for panel in panels %}
     <section class="card panel">
       <h2><span>{{ panel.title }}</span><span class="muted">{{ panel.count }}</span></h2>
-      <h3>Waiting on GRAPHNIX · {{ panel.graphnix|length }}</h3>
+      <h3>Waiting On GRAPHNIX · {{ panel.graphnix|length }}</h3>
       {% for c in panel.graphnix %}{% include "jobs/_home_row.html" %}{% empty %}<p class="muted" style="margin:0">Nothing.</p>{% endfor %}
-      <h3>Waiting on customer · {{ panel.customer|length }}</h3>
+      <h3>Waiting On Customer · {{ panel.customer|length }}</h3>
       {% for c in panel.customer %}{% include "jobs/_home_row.html" %}{% empty %}<p class="muted" style="margin:0">Nothing.</p>{% endfor %}
       {% if panel.title == "Invoices" %}
         <p class="help">Owing on open jobs: <strong>{{ owing_cents|money }}</strong> across {{ owing_jobs }} job{{ owing_jobs|pluralize }}

@@ -2,7 +2,7 @@
 {% block title %}{% if task %}Edit decoration{% else %}Add decoration{% endif %} · {{ job.display_number }}{% endblock %}
 {% block content %}
 <p class="muted" style="margin:0"><a href="{% url 'jobs:detail' job.pk %}">{{ job.display_number }}</a> /</p>
-<h1>{% if task %}Edit decoration{% else %}Add decoration{% endif %}</h1>
+<h1>{% if task %}Edit Decoration{% else %}Add Decoration{% endif %}</h1>
 <form method="post" class="card">
   {% csrf_token %}
   {% include "partials/form_fields.html" %}

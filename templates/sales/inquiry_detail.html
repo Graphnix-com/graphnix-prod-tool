@@ -22,12 +22,12 @@
   <h2>1. Customer</h2>
   <div class="card">
     <form method="get" style="display:flex;gap:8px;max-width:600px">
-      <input type="text" name="q" value="{{ query }}" placeholder="Search name, company, email or phone">
+      <input type="text" name="q" value="{{ query }}" placeholder="Search Name, Company, Email Or Phone">
       <button type="submit">Search</button>
     </form>
     {% if matches %}
       <table style="margin-top:10px">
-        <tr><th>{% if query %}Results{% else %}Possible matches{% endif %}</th><th></th></tr>
+        <tr><th>{% if query %}Results{% else %}Possible Matches{% endif %}</th><th></th></tr>
         {% for c in matches %}
           <tr><td>{{ c }}{% if perms.customers.view_contact_details %} <span class="muted">{{ c.email }} {{ c.phone }}</span>{% endif %}</td>
             <td style="text-align:right"><form method="post" action="{% url 'sales:customer' inquiry.pk %}" class="inline">{% csrf_token %}
@@ -44,7 +44,7 @@
   </div>
 
   {% if can_convert %}
-    <h2>2. Convert to job</h2>
+    <h2>2. Convert To Job</h2>
     <form method="post" action="{% url 'sales:convert' inquiry.pk %}" class="card">
       {% csrf_token %}
       {% if not inquiry.customer %}<p class="warn">Match or create the customer first.</p>{% endif %}

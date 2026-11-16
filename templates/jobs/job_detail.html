@@ -20,7 +20,7 @@
   <div class="actions">
     {% if actions.forward and actions.forward.gate %}
       {% if actions.forward.can_override %}
-        <details class="action"><summary>Move to {{ actions.forward.label }}</summary>
+        <details class="action"><summary>Move To {{ actions.forward.label }}</summary>
           <form method="post" action="{% url 'jobs:action' job.pk %}">
             {% csrf_token %}<input type="hidden" name="action" value="move">
             <input type="hidden" name="to_status" value="{{ actions.forward.to }}">
@@ -43,25 +43,25 @@
       </form>
     {% endif %}
     {% if actions.skip_mockup %}
-      <details class="action"><summary>Skip mock-up</summary>
+      <details class="action"><summary>Skip Mock-up</summary>
         <form method="post" action="{% url 'jobs:action' job.pk %}">
           {% csrf_token %}<input type="hidden" name="action" value="skip_mockup">
-          <label>Reason</label><input type="text" name="note" required placeholder="e.g. online store order">
+          <label>Reason</label><input type="text" name="note" required placeholder="E.g. Online Store Order">
           <p><button type="submit">Skip to Materials ordered</button></p>
         </form>
       </details>
     {% endif %}
     {% if actions.reopen_mockup %}
-      <details class="action"><summary>Reopen mock-up</summary>
+      <details class="action"><summary>Reopen Mock-up</summary>
         <form method="post" action="{% url 'jobs:action' job.pk %}">
           {% csrf_token %}<input type="hidden" name="action" value="reopen_mockup">
-          <label>Reason</label><input type="text" name="note" required placeholder="e.g. customer wants navy ink">
+          <label>Reason</label><input type="text" name="note" required placeholder="E.g. Customer Wants Navy Ink">
           <p><button type="submit">Back to Mock-up in progress</button></p>
         </form>
       </details>
     {% endif %}
     {% if actions.jump_targets %}
-      <details class="action"><summary>Move to another stage</summary>
+      <details class="action"><summary>Move To Another Stage</summary>
         <form method="post" action="{% url 'jobs:action' job.pk %}">
           {% csrf_token %}<input type="hidden" name="action" value="move">
           <label>Stage</label>
@@ -72,7 +72,7 @@
       </details>
     {% endif %}
     {% if actions.hold %}
-      <details class="action"><summary>Put on hold</summary>
+      <details class="action"><summary>Put On Hold</summary>
         <form method="post" action="{% url 'jobs:action' job.pk %}">
           {% csrf_token %}<input type="hidden" name="action" value="hold">
           <label>Reason</label>
@@ -89,7 +89,7 @@
       </form>
     {% endif %}
     {% if actions.cancel %}
-      <details class="action"><summary>Cancel job</summary>
+      <details class="action"><summary>Cancel Job</summary>
         <form method="post" action="{% url 'jobs:action' job.pk %}">
           {% csrf_token %}<input type="hidden" name="action" value="cancel">
           <label>Reason <span class="muted">(optional)</span></label><input type="text" name="note">
@@ -98,7 +98,7 @@
       </details>
     {% endif %}
     {% if actions.reopen %}
-      <details class="action"><summary>Reopen job</summary>
+      <details class="action"><summary>Reopen Job</summary>
         <form method="post" action="{% url 'jobs:action' job.pk %}">
           {% csrf_token %}<input type="hidden" name="action" value="reopen">
           <label>Reason</label><input type="text" name="note" required>
@@ -110,7 +110,7 @@
 </div>
 
 <nav class="tabs">
-  <a href="?tab=items" class="{% if tab == 'items' %}here{% endif %}">Items and tasks</a>
+  <a href="?tab=items" class="{% if tab == 'items' %}here{% endif %}">Items And Tasks</a>
   <a href="?tab=timeline" class="{% if tab == 'timeline' %}here{% endif %}">Timeline</a>
   <a href="?tab=details" class="{% if tab == 'details' %}here{% endif %}">Details</a>
 </nav>

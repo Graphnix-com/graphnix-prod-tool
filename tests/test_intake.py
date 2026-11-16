@@ -48,7 +48,7 @@ def test_inquiry_page_suggests_customers_by_email(client, manager):
     Customer.objects.create(display_name="Sam Lee", email="sam@example.com")
     inquiry = Inquiry.objects.create(channel=Channel.EMAIL, from_email="SAM@example.com")
     page = logged_in(client, manager).get(reverse("sales:detail", args=[inquiry.pk]))
-    assert "Possible matches" in page.content.decode()
+    assert "Possible Matches" in page.content.decode()
     assert "Sam Lee" in page.content.decode()
 
 

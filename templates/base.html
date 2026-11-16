@@ -170,7 +170,7 @@
     <span style="display:flex;align-items:center;gap:8px">
       {% if perms.jobs.view_job %}
         <form method="get" action="{% url 'jobs:search' %}" class="inline" role="search">
-          <input type="search" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Job no. or customer" aria-label="Search jobs" style="width:220px;padding:5px 8px;border:1px solid #c8c8c4;border-radius:6px;font:inherit">
+          <input type="search" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Job No. Or Customer" aria-label="Search jobs" style="width:220px;padding:5px 8px;border:1px solid #c8c8c4;border-radius:6px;font:inherit">
         </form>
       {% endif %}
       <span class="env {{ APP_ENV }}">{{ APP_ENV }}</span>

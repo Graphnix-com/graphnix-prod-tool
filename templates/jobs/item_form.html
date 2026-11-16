@@ -2,7 +2,7 @@
 {% block title %}{% if item %}Edit item{% else %}Add item{% endif %} · {{ job.display_number }}{% endblock %}
 {% block content %}
 <p class="muted" style="margin:0"><a href="{% url 'jobs:detail' job.pk %}">{{ job.display_number }}</a> /</p>
-<h1>{% if item %}Edit item {{ item.line_no }}{% else %}Add item{% endif %}</h1>
+<h1>{% if item %}Edit Item {{ item.line_no }}{% else %}Add Item{% endif %}</h1>
 <form method="post" class="card">
   {% csrf_token %}
   {% if form.non_field_errors %}<ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
