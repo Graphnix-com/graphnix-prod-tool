@@ -130,15 +130,21 @@ def _post(path: str, body: dict) -> dict | None:
     return response.json()
 
 
-def search_orders(location_id: str, *, updated_since: str, max_pages: int = 50):
-    """Orders at a location updated since an RFC 3339 time, newest first."""
+def search_orders(
+    location_id: str, *, updated_since: str, max_pages: int = 50, states: list | None = None
+):
+    """Orders at a location updated since an RFC 3339 time, newest first. `states` adds
+    Square's state filter (drafts are only returned when asked for)."""
     cursor = None
     for _ in range(max_pages):
+        query_filter = {"date_time_filter": {"updated_at": {"start_at": updated_since}}}
+        if states:
+            query_filter["state_filter"] = {"states": states}
         body = {
             "location_ids": [location_id],
             "limit": 500,
             "query": {
-                "filter": {"date_time_filter": {"updated_at": {"start_at": updated_since}}},
+                "filter": query_filter,
                 "sort": {"sort_field": "UPDATED_AT", "sort_order": "DESC"},
             },
         }
@@ -146,6 +152,20 @@ def search_orders(location_id: str, *, updated_since: str, max_pages: int = 50):
             body["cursor"] = cursor
         page = _post("/v2/orders/search", body) or {}
         yield from page.get("orders", [])
+        cursor = page.get("cursor")
+        if not cursor:
+            return
+
+
+def search_customers(*, updated_since: str, max_pages: int = 5):
+    """Customers updated since an RFC 3339 time."""
+    cursor = None
+    for _ in range(max_pages):
+        body = {"limit": 100, "query": {"filter": {"updated_at": {"start_at": updated_since}}}}
+        if cursor:
+            body["cursor"] = cursor
+        page = _post("/v2/customers/search", body) or {}
+        yield from page.get("customers", [])
         cursor = page.get("cursor")
         if not cursor:
             return
