@@ -110,7 +110,9 @@ def job_detail(request, pk):
         "can_assign": job.status not in assignment.CLOSED,
     }
     if tab == "timeline":
-        context["entries"] = timeline.build(job)
+        context["entries"] = timeline.build(
+            job, show_money=request.user.has_perm("jobs.view_money")
+        )
     return render(request, "jobs/job_detail.html", context)
 
 

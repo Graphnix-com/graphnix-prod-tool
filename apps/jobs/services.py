@@ -66,7 +66,9 @@ def _on_enter(job: Job, status: str, now) -> None:
         job.closed_at = now
 
 
-def _change_status(job: Job, to_status: str, user, note: str, source: str, action: str) -> Job:
+def _change_status(
+    job: Job, to_status: str, user, note: str, source: str, action: str, extra: dict | None = None
+) -> Job:
     old = job.status
     now = timezone.now()
     job.status = to_status
@@ -85,6 +87,7 @@ def _change_status(job: Job, to_status: str, user, note: str, source: str, actio
     changes = {"status": [old, to_status]}
     if note:
         changes["reason"] = [None, note]
+    changes.update(extra or {})
     record(user, job, action, changes)
     return job
 
@@ -174,6 +177,26 @@ def move(job: Job, to_status: str, *, user, note: str = "", source: str = "user"
         note.strip(),
         source,
         "status_change" if kind == flow.FORWARD else "override",
+    )
+
+
+@transaction.atomic
+def square_invoiced(job: Job, *, note: str, event_id: str = "") -> Job:
+    """A Square invoice for this job was sent (FR-06): a job still at the quote stages moves
+    to Invoiced, with Square as the source. A job already past Invoiced stays where it is."""
+    job = _locked(job)
+    if job.status not in flow.BEFORE_INVOICED:
+        return job
+    if job.quote_approved_at is None:
+        job.quote_approved_at = timezone.now()
+    return _change_status(
+        job,
+        Status.INVOICED,
+        None,
+        note,
+        JobStatusHistory.Source.SQUARE,
+        "status_change",
+        {"square_event": [None, event_id]} if event_id else None,
     )
 
 

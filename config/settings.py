@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "apps.customers",
     "apps.jobs",
     "apps.m365",
+    "apps.integrations",
     "apps.production",
     "apps.sales",
 ]
@@ -146,6 +147,17 @@ M365_GROUP_ADMIN = env("M365_GROUP_ADMIN", default="")
 M365_GROUP_MANAGER = env("M365_GROUP_MANAGER", default="")
 M365_GROUP_PRODUCTION = env("M365_GROUP_PRODUCTION", default="")
 M365_SIGN_IN_ENABLED = M365_CONFIGURED and bool(M365_GROUP_ADMIN or M365_GROUP_MANAGER)
+
+# Square (Step 2), read-only. Until the token and signature key are set, Square stays off.
+# SQUARE_WEBHOOK_URL is the notification URL exactly as entered in Square: the signature
+# covers it, so it must match character for character.
+SQUARE_ENVIRONMENT = env("SQUARE_ENVIRONMENT", default="sandbox")
+SQUARE_ACCESS_TOKEN = env("SQUARE_ACCESS_TOKEN", default="")
+SQUARE_WEBHOOK_SIGNATURE_KEY = env("SQUARE_WEBHOOK_SIGNATURE_KEY", default="")
+SQUARE_WEBHOOK_URL = env("SQUARE_WEBHOOK_URL", default="")
+SQUARE_LOCATION_ID = env("SQUARE_LOCATION_ID", default="")
+SQUARE_API_VERSION = env("SQUARE_API_VERSION", default="2025-01-23")
+SQUARE_ENABLED = bool(SQUARE_ACCESS_TOKEN and SQUARE_WEBHOOK_SIGNATURE_KEY)
 
 EMAIL_BACKEND = (
     "apps.m365.email_backend.GraphEmailBackend"

@@ -17,7 +17,16 @@ QA_AND_SHIPPING = "QA and shipping"
 CUSTOMER_ENTRY = "Customer entry"
 
 # Every permission in these apps goes to Admin/Owner.
-ADMIN_APPS = ["accounts", "audit", "core", "customers", "jobs", "production", "sales"]
+ADMIN_APPS = [
+    "accounts",
+    "audit",
+    "core",
+    "customers",
+    "integrations",
+    "jobs",
+    "production",
+    "sales",
+]
 
 _CUSTOMER_EDIT = [
     "customers.add_customer",
@@ -46,6 +55,8 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "jobs.move_finish_stages",
         "jobs.override_job_flow",
         "jobs.view_money",
+        "integrations.view_squareinvoice",
+        "integrations.link_square_invoice",
         "production.assign_staff_task",
         "production.take_task",
         *_CUSTOMER_EDIT,
