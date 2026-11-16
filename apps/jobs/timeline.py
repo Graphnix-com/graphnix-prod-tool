@@ -30,7 +30,7 @@ _VERB = {"create": "added", "update": "changed", "delete": "removed"}
 # Context keys recorded with an edit, not fields that changed.
 _CONTEXT = {"line", "task", "description", "file"}
 # Money from Square: only for people who can see money (NFR-02).
-_MONEY = {"integrations.squareinvoice"}
+_MONEY = {"integrations.squareinvoice", "integrations.squareorder"}
 _MONEY_ACTIONS = {"payment"}
 
 
@@ -91,6 +91,8 @@ def _square_entry(entry: AuditLog) -> Entry:
     changes = entry.changes or {}
     number = (changes.get("invoice") or [None, None])[1] or ""
     label = f"Square invoice {number}".strip()
+    if changes.get("order"):
+        label = f"store order {changes['order'][1]}"
     if entry.action in ("link", "unlink"):
         who = str(entry.actor) if entry.actor else "Square"
         number = changes.get("invoice") or [None, None]

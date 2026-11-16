@@ -1,14 +1,14 @@
 {% load money %}
 <div class="card">
   <h2 style="margin-top:0">Payment <span class="muted" style="font-weight:400">from Square</span></h2>
-  {% if invoices %}
+  {% if invoices or store_orders %}
     <dl class="facts" style="margin-bottom:12px">
       <dt>Status</dt><dd><span class="pill {{ job.payment_status }}">{{ job.get_payment_status_display }}</span></dd>
       <dt>Total</dt><dd>{{ job.amount_total_cents|money:job.currency }}</dd>
       <dt>Paid</dt><dd>{{ job.amount_paid_cents|money:job.currency }}</dd>
       {% if job.amount_total_cents is not None %}<dt>Balance</dt><dd>{{ balance|money:job.currency }}</dd>{% endif %}
     </dl>
-    <table>
+    {% if invoices %}<table>
       <tr><th>Invoice</th><th>Status</th><th>Total</th><th>Paid</th><th>Refunded</th><th>Due</th><th></th></tr>
       {% for inv in invoices %}
         <tr>
@@ -25,7 +25,22 @@
             </form>{% endif %}</td>
         </tr>
       {% endfor %}
+    </table>{% endif %}
+    {% if store_orders %}
+    <table style="margin-top:8px">
+      <tr><th>Store Order</th><th>Status</th><th>Total</th><th>Paid</th><th>Refunded</th><th>Placed</th></tr>
+      {% for o in store_orders %}
+        <tr>
+          <td>{{ o.number }}<div class="muted" style="font-size:12px">{{ o.source_name }}{% if o.fulfillment %} · {{ o.fulfillment|lower|capfirst }}{% endif %}</div></td>
+          <td>{{ o.status_label }}</td>
+          <td>{{ o.total_cents|money:o.currency }}</td>
+          <td>{{ o.paid_cents|money:o.currency }}</td>
+          <td>{% if o.refunded_cents %}{{ o.refunded_cents|money:o.currency }}{% else %}—{% endif %}</td>
+          <td>{{ o.square_created_at|date:"j M Y"|default:"—" }}</td>
+        </tr>
+      {% endfor %}
     </table>
+    {% endif %}
   {% else %}
     <p class="muted" style="margin:0">No Square invoice yet. Put {{ job.job_number }} in the invoice title and it links itself.</p>
   {% endif %}

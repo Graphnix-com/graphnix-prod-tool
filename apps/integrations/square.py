@@ -107,6 +107,50 @@ def _detail(response) -> str:
         return str(response.status_code)
 
 
+def _post(path: str, body: dict) -> dict | None:
+    """A read that Square takes as a POST (searches). Nothing is changed in Square."""
+    base = API_BASE.get(settings.SQUARE_ENVIRONMENT, API_BASE["sandbox"])
+    try:
+        response = requests.post(
+            base + path,
+            json=body,
+            headers={
+                "Authorization": f"Bearer {settings.SQUARE_ACCESS_TOKEN}",
+                "Square-Version": settings.SQUARE_API_VERSION,
+                "Accept": "application/json",
+            },
+            timeout=TIMEOUT_SECONDS,
+        )
+    except requests.RequestException as exc:
+        raise SquareError(f"Square didn't answer: {exc.__class__.__name__}") from exc
+    if response.status_code in (401, 403):
+        raise SquareAccessError(f"Square refused the access token for {path}: {_detail(response)}")
+    if not response.ok:
+        raise SquareError(f"Square answered {response.status_code} for {path}")
+    return response.json()
+
+
+def search_orders(location_id: str, *, updated_since: str, max_pages: int = 50):
+    """Orders at a location updated since an RFC 3339 time, newest first."""
+    cursor = None
+    for _ in range(max_pages):
+        body = {
+            "location_ids": [location_id],
+            "limit": 500,
+            "query": {
+                "filter": {"date_time_filter": {"updated_at": {"start_at": updated_since}}},
+                "sort": {"sort_field": "UPDATED_AT", "sort_order": "DESC"},
+            },
+        }
+        if cursor:
+            body["cursor"] = cursor
+        page = _post("/v2/orders/search", body) or {}
+        yield from page.get("orders", [])
+        cursor = page.get("cursor")
+        if not cursor:
+            return
+
+
 def list_locations() -> list[str]:
     return [loc["id"] for loc in (_get("/v2/locations") or {}).get("locations", [])]
 
@@ -331,11 +375,14 @@ def payment_summary(invoices) -> tuple[str, int | None, int, str]:
     return status, total, paid, active[0].currency
 
 
-def refresh_job(job: Job, *, invoice: SquareInvoice | None = None, event_id: str = "") -> Job:
-    """Recalculate a job's money from its invoices; move it to Invoiced once one is sent."""
+def refresh_job(
+    job: Job, *, invoice: SquareInvoice | None = None, order=None, event_id: str = ""
+) -> Job:
+    """Recalculate a job's money from its invoices and store orders; move it to Invoiced
+    once an invoice is sent."""
     job = Job.objects.select_for_update().get(pk=job.pk)
     invoices = list(job.square_invoices.all())
-    status, total, paid, currency = payment_summary(invoices)
+    status, total, paid, currency = payment_summary(invoices + list(job.square_orders.all()))
     before = (job.payment_status, job.amount_total_cents, job.amount_paid_cents, job.currency)
     after = (status, total, paid, currency)
     if before != after:
@@ -361,6 +408,8 @@ def refresh_job(job: Job, *, invoice: SquareInvoice | None = None, event_id: str
             changes["total"] = [money(before[1], before[3]), money(total, currency)]
         if invoice is not None:
             changes["invoice"] = [invoice.invoice_number, invoice.invoice_number]
+        if order is not None:
+            changes["order"] = [order.number, order.number]
         changes["square_event"] = [None, event_id]
         record(None, invoice or job, "payment", changes, job=job)
 
@@ -384,6 +433,11 @@ def process_event(event_pk: int) -> None:
         return
     try:
         latest, refunded = _latest_invoice(event)
+        order, buyer = (None, None)
+        if event.event_type.startswith("order.") and api_configured() and event.square_object_id:
+            from . import orders
+
+            order, buyer = orders.fetch(event.square_object_id)
         with transaction.atomic():
             event = WebhookEvent.objects.select_for_update().get(pk=event_pk)
             if event.processed_at is not None:
@@ -393,6 +447,8 @@ def process_event(event_pk: int) -> None:
                 mark_deleted(event.square_object_id, event_id=event.event_id)
             elif event.event_type.startswith("customer."):
                 customer_event(event.body)
+            elif event.event_type.startswith("order."):
+                note = _order_event(order, buyer, event.event_id)
             elif latest is not None and other_location(latest):
                 note = (
                     f"Skipped: the invoice is from location {other_location(latest)}; the "
@@ -416,6 +472,21 @@ def process_event(event_pk: int) -> None:
             attempts=event.attempts + 1, last_error=str(exc)[:2000]
         )
         raise
+
+
+def _order_event(order: dict | None, buyer: dict | None, event_id: str) -> str:
+    """order.created / order.updated: store orders become jobs; the rest are left alone.
+    Returns a note for the event log."""
+    from . import orders
+
+    if order is None:
+        return "Skipped: Square has no such order, or Square isn't set up here."
+    if not orders.is_store_order(order):
+        return ""  # a counter sale or an invoice's order: normal, nothing to do
+    if other_location(order):
+        return f"Skipped: the order is from location {other_location(order)}."
+    orders.apply(order, square_customer=buyer, event_id=event_id)
+    return ""
 
 
 def customer_event(body: dict) -> None:

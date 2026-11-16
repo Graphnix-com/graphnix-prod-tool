@@ -93,3 +93,56 @@ class SquareInvoice(models.Model):
     @property
     def sent(self) -> bool:
         return self.status not in ("DRAFT", "")
+
+
+class SquareOrder(models.Model):
+    """The latest copy of one online store order (Square Online), and the job made from it.
+
+    Store orders skip the quote and invoice: paid at checkout, with a store design that is
+    already approved, so each becomes a job at Mock-Up Approved. Counter sales are Square
+    orders too; they're never stored (only sources in SQUARE_STORE_SOURCES are)."""
+
+    square_id = models.CharField(max_length=100, unique=True)
+    version = models.IntegerField(default=0)
+    location_id = models.CharField(max_length=100, blank=True)
+    source_name = models.CharField(max_length=255, blank=True)
+    reference = models.CharField(max_length=100, blank=True)  # the store's order number
+    state = models.CharField(max_length=20)  # Square's own: OPEN, COMPLETED, CANCELED, DRAFT
+    square_customer_id = models.CharField(max_length=100, blank=True)
+    buyer_name = models.CharField(max_length=255, blank=True)
+    fulfillment = models.CharField(max_length=20, blank=True)  # SHIPMENT, PICKUP, DELIVERY
+    currency = models.CharField(max_length=3, default="CAD")
+    total_cents = models.BigIntegerField(null=True, blank=True)
+    paid_cents = models.BigIntegerField(default=0)
+    refunded_cents = models.BigIntegerField(default=0)
+    square_created_at = models.DateTimeField(null=True, blank=True)
+    square_updated_at = models.DateTimeField(null=True, blank=True)
+    job = models.ForeignKey(
+        "jobs.Job",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="square_orders",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "square_order"
+        ordering = ["-square_created_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"Store order {self.number}"
+
+    @property
+    def number(self) -> str:
+        return self.reference or self.square_id[-6:]
+
+    @property
+    def status(self) -> str:
+        """Read like an invoice's status by the payment summary."""
+        return self.state
+
+    @property
+    def status_label(self) -> str:
+        return {"CANCELED": "Cancelled"}.get(self.state, self.state.capitalize())
