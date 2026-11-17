@@ -270,6 +270,11 @@ class JobItem(models.Model):
     is_sized = models.BooleanField("has sizes", default=True)
     customer_supplied = models.BooleanField(default=False)
     customer_goods_received_at = models.DateTimeField(null=True, blank=True)
+    # Blanks pulled from the shop's shelves: off any PO, counted as received (Step 3).
+    from_stock_at = models.DateTimeField(null=True, blank=True)
+    from_stock_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
     notes = models.TextField(blank=True)
 
     class Meta:
@@ -277,6 +282,9 @@ class JobItem(models.Model):
         ordering = ["job", "line_no"]
         constraints = [
             models.UniqueConstraint(fields=["job", "line_no"], name="job_item_line_unique"),
+        ]
+        permissions = [
+            ("check_in_materials", "Can tick items from stock and check in customer goods"),
         ]
 
     def __str__(self) -> str:

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>{{ po.po_number }}</title>
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; color: #111; margin: 32px; }
+  h1 { margin: 0 0 4px; } table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  th, td { text-align: left; border-bottom: 1px solid #ccc; padding: 6px 8px; }
+  .muted { color: #666; } @media print { body { margin: 0; } }
+</style></head>
+<body>
+  <h1>Purchase order {{ po.po_number }}</h1>
+  <div>GRAPHNIX · {{ po.supplier_name }}{% if po.supplier_order_ref %} · supplier's order {{ po.supplier_order_ref }}{% endif %}</div>
+  <div class="muted">{{ po.get_kind_display }}{% if po.ordered_at %} · ordered {{ po.ordered_at|date:"j M Y" }}{% endif %}{% if po.expected_at %} · expected {{ po.expected_at|date:"j M Y" }}{% endif %}</div>
+  {% if po.notes %}<p>{{ po.notes|linebreaksbr }}</p>{% endif %}
+  <table>
+    <tr><th>For</th><th>Item</th><th>Item no.</th><th>Colour</th><th>Size</th><th>Qty</th></tr>
+    {% for job, lines in groups %}{% for line in lines %}
+      <tr><td>{% if job %}{{ job.display_number }}{% else %}Stock{% endif %}</td><td>{{ line.description }}</td><td>{{ line.item_no }}</td><td>{{ line.color }}</td><td>{{ line.size }}</td><td>{{ line.qty_ordered }}</td></tr>
+    {% endfor %}{% endfor %}
+  </table>
+</body></html>

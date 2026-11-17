@@ -5,6 +5,7 @@
   {% if c.job.due_date %}<span class="muted">· due {{ c.job.due_date|date:"D j M" }}</span>{% endif %}
   {% if c.flag %}<span class="flag {{ c.flag }}">{% if c.flag == "overdue" %}Overdue{% else %}At risk{% endif %}</span>{% endif %}
   {% if c.job.online_order %}<span class="pill online{% if c.job.status == "mockup_approved" %} new{% endif %}">{{ c.job.online_order }}</span>{% endif %}
+  {% if c.job.materials_late %}<span class="flag overdue">Materials late</span>{% endif %}
   {% if c.job.priority == 1 %}<span class="pill sooner">Sooner</span>{% endif %}
   {% if c.job.payment_status != "unpaid" %}<span class="pill {{ c.job.payment_status }}">{{ c.job.get_payment_status_display }}</span>{% endif %}
   {% if c.job.balance_cents %}<span class="muted">· owes {{ c.job.balance_cents|money:c.job.currency }}</span>{% endif %}

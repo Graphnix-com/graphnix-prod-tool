@@ -143,6 +143,19 @@
             {% if item.is_sized %}{% for s in item.sizes.all %}{{ s.size }} {{ s.quantity }}{% if not forloop.last %} · {% endif %}{% endfor %} — {% endif %}{{ item.total_quantity }} total
           </div>
           {% if item.notes %}<div>{{ item.notes|linebreaksbr }}</div>{% endif %}
+          {% with m=item.materials %}{% if m %}
+            <div class="materials {{ m.state }}">Materials: {{ m.text }}
+              {% if can_check_in %}
+                {% if item.customer_supplied %}
+                  <form method="post" action="{% url 'purchasing:item' item.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="what" value="goods"><input type="hidden" name="on" value="{% if item.customer_goods_received_at %}0{% else %}1{% endif %}"><button type="submit">{% if item.customer_goods_received_at %}Undo check-in{% else %}Check in customer goods{% endif %}</button></form>
+                {% elif item.from_stock_at %}
+                  <form method="post" action="{% url 'purchasing:item' item.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="what" value="stock"><input type="hidden" name="on" value="0"><button type="submit">Not from stock</button></form>
+                {% elif m.state == "none" %}
+                  <form method="post" action="{% url 'purchasing:item' item.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="what" value="stock"><input type="hidden" name="on" value="1"><button type="submit">From stock</button></form>
+                {% endif %}
+              {% endif %}
+            </div>
+          {% endif %}{% endwith %}
         </div>
         {% if editable %}
           <div style="white-space:nowrap">
@@ -261,6 +274,17 @@
     {% if perms.jobs.change_job %}<p style="margin-bottom:0"><a class="button" href="{% url 'jobs:edit' job.pk %}">Edit details</a></p>{% endif %}
   </div>
   {% include "jobs/_files.html" %}
+  {% if materials and materials.pos %}
+    <div class="card">
+      <h2 style="margin-top:0">Purchase Orders</h2>
+      <table>
+        <tr><th>PO</th><th>Supplier</th><th>Status</th><th>Expected</th></tr>
+        {% for po in materials.pos %}
+          <tr><td><a href="{% url 'purchasing:detail' po.pk %}">{{ po.po_number }}</a></td><td>{{ po.supplier_name }}</td><td>{{ po.get_status_display }}{% if po.is_late %} <span class="flag overdue">Late</span>{% endif %}</td><td>{{ po.expected_at|date:"D j M"|default:"—" }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+  {% endif %}
   {% if can_see_money %}{% include "jobs/_payment_panel.html" %}{% endif %}
 {% endif %}
 {% endblock %}

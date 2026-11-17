@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import timedelta
 
-from django.db.models import F, Prefetch, Q
+from django.db.models import Exists, F, OuterRef, Prefetch, Q
 from django.utils import timezone
 
 from apps.production.models import ProductionTask
@@ -51,12 +51,31 @@ DUE_FILTERS = [
 ]
 
 
+def late_materials():
+    """PO lines still to arrive whose expected date has passed (Step 3: "Materials late")."""
+    from django.utils import timezone
+
+    from apps.purchasing.models import PurchaseOrder, PurchaseOrderLine
+
+    return PurchaseOrderLine.objects.filter(
+        purchase_order__status__in=[
+            PurchaseOrder.Status.ORDERED,
+            PurchaseOrder.Status.PARTLY_RECEIVED,
+        ],
+        purchase_order__expected_at__lt=timezone.localdate(),
+        qty_received__lt=F("qty_ordered"),
+        closed_short_reason="",
+    )
+
+
 def base_queryset():
     tasks = ProductionTask.objects.select_related("decoration_method", "assigned_to").order_by(
         "sequence"
     )
-    return Job.objects.select_related("customer").prefetch_related(
-        Prefetch("tasks", queryset=tasks, to_attr="task_list")
+    return (
+        Job.objects.select_related("customer")
+        .prefetch_related(Prefetch("tasks", queryset=tasks, to_attr="task_list"))
+        .annotate(materials_late=Exists(late_materials().filter(job=OuterRef("pk"))))
     )
 
 
@@ -280,8 +299,8 @@ def money_summary() -> dict:
 
 
 def search(query: str, *, can_see_contacts: bool, limit: int = 50):
-    """Jobs by Square or internal number, customer name or company, and (for people who may
-    see contacts) customer email. Invoice and PO numbers join in Steps 2 and 3."""
+    """Jobs by Square or internal number, customer name or company, PO number or the
+    supplier's order number, and (for people who may see contacts) customer email."""
     q = query.strip()
     if not q:
         return Job.objects.none()
@@ -293,6 +312,9 @@ def search(query: str, *, can_see_contacts: bool, limit: int = 50):
         | Q(title__icontains=q)
         | Q(customer__display_name__icontains=q)
         | Q(customer__company_name__icontains=q)
+        | Q(po_lines__purchase_order__po_number__iexact=number)
+        | Q(po_lines__purchase_order__po_number__iexact=f"PO-{number}")
+        | Q(po_lines__purchase_order__supplier_order_ref__iexact=q)
     )
     if can_see_contacts:
         terms |= Q(customer__email__icontains=q) | Q(contact__email__icontains=q)

@@ -14,7 +14,7 @@ from . import assignment, board, editing, files, mockups, money, services, timel
 from .editing import Locked
 from .flags import Flagger
 from .forms import ItemForm, JobDetailsForm, NoteForm, TaskForm
-from .models import Job, JobFile, JobItem, PaymentStatus
+from .models import Job, JobFile, JobItem, PaymentStatus, Status
 from .services import InvalidMove
 
 TABS = ["items", "mockups", "timeline", "details"]
@@ -126,6 +126,19 @@ def job_detail(request, pk):
     }
     sent = [v for v in context["mockup_versions"] if v.sent_at]
     context["sent_mockup_id"] = max(sent, key=lambda v: v.sent_at).pk if sent else None
+    if tab in ("items", "details") and request.user.has_perm("purchasing.view_purchaseorder"):
+        from apps.purchasing import services as purchasing
+
+        context["materials"] = purchasing.for_job(job)
+        context["items"] = list(items)
+        for item in context["items"]:
+            item.materials = context["materials"]["by_item"].get(item.pk)
+        context["can_check_in"] = request.user.has_perm(purchasing.CHECK_IN) and job.status in (
+            Status.INVOICED,
+            Status.MOCKUP_SENT,
+            Status.MOCKUP_APPROVED,
+            Status.MATERIALS_ORDERED,
+        )
     if tab == "mockups":
         context["mockup_rows"] = mockups.states(job)
         context["mockup_files"] = [

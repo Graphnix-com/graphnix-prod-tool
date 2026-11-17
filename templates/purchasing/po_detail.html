@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}{{ po.po_number }} · GRAPHNIX tracker{% endblock %}
+{% block content %}
+<p class="muted" style="margin:0"><a href="{% url 'purchasing:list' %}">Purchase orders</a> /</p>
+<h1>{{ po.po_number }} · {{ po.supplier_name }}</h1>
+<p class="sub">
+  <span class="status">{{ po.get_status_display }}</span>
+  {% if po.is_late %}<span class="flag overdue">Late</span>{% endif %}
+  · {{ po.get_kind_display }}
+  {% if po.supplier_order_ref %}· supplier's order {{ po.supplier_order_ref }}{% endif %}
+  {% if po.ordered_at %}· ordered {{ po.ordered_at|date:"D j M" }}{% endif %}
+  {% if po.expected_at %}· expected {{ po.expected_at|date:"D j M" }}{% endif %}
+  · <a href="{% url 'purchasing:print' po.pk %}" target="_blank" rel="noopener">Print</a>
+</p>
+{% if po.notes %}<p>{{ po.notes|linebreaksbr }}</p>{% endif %}
+
+<div class="card">
+  <div class="actions">
+    {% if can_edit and po.status == "draft" %}
+      <details class="action" open><summary>Mark Ordered</summary>
+        <form method="post" action="{% url 'purchasing:order' po.pk %}">
+          {% csrf_token %}
+          <p class="help" style="margin-top:0">Once you've placed the order with {{ po.supplier_name }}. Jobs on it at Mock-up approved move to Materials ordered.</p>
+          <label>Supplier's order number <span class="muted">(optional)</span></label><input type="text" name="supplier_order_ref" maxlength="100">
+          <label>Expected</label><input type="date" name="expected_at">
+          <p><button type="submit" class="primary">Mark ordered</button></p>
+        </form>
+      </details>
+    {% endif %}
+    {% if can_edit and po.status == "draft" or can_edit and po.status == "ordered" %}
+      <details class="action"><summary>Cancel PO</summary>
+        <form method="post" action="{% url 'purchasing:cancel' po.pk %}">
+          {% csrf_token %}<label>Reason</label><input type="text" name="reason" required>
+          <p><button type="submit" class="danger">Cancel {{ po.po_number }}</button></p>
+        </form>
+      </details>
+    {% endif %}
+  </div>
+</div>
+
+{% if can_receive and po.is_open and open_lines %}
+<form method="post" action="{% url 'purchasing:receive' po.pk %}" class="card">
+  {% csrf_token %}
+  <h2 style="margin-top:0">Receive A Delivery</h2>
+  <p class="help" style="margin-top:0">Count what came in the box. Leave a line blank if none of it came.</p>
+  <table>
+    <tr><th>Job</th><th>Item</th><th>Colour</th><th>Size</th><th>Ordered</th><th>Already in</th><th>In this delivery</th></tr>
+    {% for line in open_lines %}
+      <tr>
+        <td>{% if line.job %}{{ line.job.display_number }}{% else %}<span class="muted">Stock</span>{% endif %}</td>
+        <td>{{ line.description }}</td><td>{{ line.color|default:"—" }}</td><td>{{ line.size|default:"—" }}</td>
+        <td>{{ line.qty_ordered }}</td><td>{{ line.qty_received }}</td>
+        <td><input type="number" name="qty_{{ line.pk }}" min="0" style="width:6em" aria-label="Received for {{ line }}"></td>
+      </tr>
+    {% endfor %}
+  </table>
+  <label>Note <span class="muted">(optional, e.g. packing slip number)</span></label><input type="text" name="note" maxlength="300">
+  <p style="margin-bottom:0"><button type="submit" class="primary">Save delivery</button></p>
+</form>
+{% endif %}
+
+{% for job, lines in groups %}
+  <div class="card">
+    <h2 style="margin-top:0">{% if job %}<a href="{% url 'jobs:detail' job.pk %}">{{ job.display_number }}</a> {{ job.title }} <span class="muted" style="font-weight:400">· {{ job.get_status_display }}</span>{% else %}For stock{% endif %}</h2>
+    <table>
+      <tr><th>Item</th><th>Colour</th><th>Size</th><th>Ordered</th><th>Received</th><th></th></tr>
+      {% for line in lines %}
+        <tr>
+          <td>{{ line.description }}{% if line.item_no %} <span class="muted">{{ line.item_no }}</span>{% endif %}</td>
+          <td>{{ line.color|default:"—" }}</td><td>{{ line.size|default:"—" }}</td>
+          <td>
+            {% if can_edit and editable %}
+              <form method="post" action="{% url 'purchasing:line' line.pk %}" class="inline">
+                {% csrf_token %}<input type="hidden" name="action" value="qty">
+                <input type="number" name="qty" value="{{ line.qty_ordered }}" min="1" style="width:5em" aria-label="Quantity for {{ line }}"><button type="submit">Save</button>
+              </form>
+            {% else %}{{ line.qty_ordered }}{% endif %}
+          </td>
+          <td>{{ line.qty_received }}{% if line.closed_short_reason %} <span class="pill" title="{{ line.closed_short_reason }}">Closed short</span>{% elif line.is_complete %} <span class="pill paid">In</span>{% endif %}</td>
+          <td style="white-space:nowrap">
+            {% if can_edit and editable %}
+              {% if not line.receipts.all %}
+                <form method="post" action="{% url 'purchasing:line' line.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="action" value="remove"><button type="submit" class="danger">Remove</button></form>
+              {% endif %}
+              {% if po.is_open and not line.is_complete %}
+                <details class="action"><summary>Close Short</summary>
+                  <form method="post" action="{% url 'purchasing:line' line.pk %}">
+                    {% csrf_token %}<input type="hidden" name="action" value="short">
+                    <label>Why it won't arrive</label><input type="text" name="reason" required placeholder="E.g. Backordered, swapped for Navy">
+                    <p><button type="submit">Close short</button></p>
+                  </form>
+                </details>
+              {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+{% empty %}
+  <p class="muted">No lines.</p>
+{% endfor %}
+
+{% if can_edit and editable %}
+  <form method="post" action="{% url 'purchasing:add_line' po.pk %}" class="card">
+    {% csrf_token %}
+    <h2 style="margin-top:0">Add A Line</h2>
+    <p class="help" style="margin-top:0">Consumables (ink, thread, transfers, vinyl) or anything else on this order.</p>
+    <label>What</label><input type="text" name="description" maxlength="200" required>
+    <label>Colour <span class="muted">(optional)</span></label><input type="text" name="color" maxlength="60">
+    <label>Size <span class="muted">(optional)</span></label><input type="text" name="size" maxlength="10">
+    <label>Quantity</label><input type="number" name="qty" min="1" required>
+    <label>For job <span class="muted">(blank: for stock)</span></label>
+    <select name="job"><option value="">Stock</option>{% for j in line_jobs %}<option value="{{ j.pk }}">{{ j.display_number }} {{ j.title|truncatechars:40 }}</option>{% endfor %}</select>
+    <p style="margin-bottom:0"><button type="submit">Add line</button></p>
+  </form>
+{% endif %}
+{% endblock %}

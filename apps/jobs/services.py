@@ -256,6 +256,21 @@ def move(
 
 
 @transaction.atomic
+def system_move(job: Job, to_status: str, *, note: str, user=None) -> str:
+    """A forward move the tracker makes itself because of something done elsewhere (a PO
+    marked ordered, the last materials in). It goes through the payment gates like any
+    other: returns '' when the job moved, else the gate's reason and the job stays."""
+    job = _locked(job)
+    if job.status == to_status:
+        return ""
+    gate = gates.blocking(job, to_status)
+    if gate:
+        return gate
+    _change_status(job, to_status, user, note, JobStatusHistory.Source.SYSTEM, "status_change")
+    return ""
+
+
+@transaction.atomic
 def square_invoiced(job: Job, *, note: str, event_id: str = "") -> Job:
     """A Square invoice for this job was sent (FR-06): a job still at the quote stages moves
     to Invoiced, with Square as the source. A job already past Invoiced stays where it is."""
