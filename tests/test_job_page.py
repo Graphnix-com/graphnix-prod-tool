@@ -114,7 +114,7 @@ def test_on_hold_counts_from_the_stage_it_left(job_at):
 
 
 def test_locked_job_refuses_item_and_task_changes(manager, job_at):
-    job = job_at(Status.QUOTING)
+    job = job_at(Status.MOCKUP_APPROVED)
     item = tee(job, manager)
     services.move(job, Status.IN_PRODUCTION, user=manager, note="testing the lock")
     job.refresh_from_db()

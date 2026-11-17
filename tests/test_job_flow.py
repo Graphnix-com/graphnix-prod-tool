@@ -14,6 +14,8 @@ from apps.jobs import flow, services
 from apps.jobs.models import HoldReason, JobStatusHistory, Status, WaitingOn
 from apps.jobs.services import InvalidMove
 
+from .conftest import approval_for, mockup_version
+
 pytestmark = pytest.mark.django_db
 EDMONTON = ZoneInfo("America/Edmonton")
 
@@ -43,6 +45,7 @@ FORWARD_ALLOWED = [
     (FINISH_LANE, {"admin", "manager", "avery"}),
 ]
 JUMP_ALLOWED = {"admin", "manager"}  # backward or skipping: with a reason
+MOCKUP_GATE_OVERRIDE = {"admin"}  # past Mock-up approved without stopping there (FR-12)
 
 
 def expected(role: str, frm: str, to: str) -> str:
@@ -54,7 +57,12 @@ def expected(role: str, frm: str, to: str) -> str:
         return "ok" if role in allowed else "denied"
     if to == Status.CLOSED:
         return "invalid"
-    return "ok" if role in JUMP_ALLOWED else "denied"
+    if role not in JUMP_ALLOWED:
+        return "denied"
+    gate = PATH.index(Status.MOCKUP_APPROVED)
+    if PATH.index(frm) < gate < PATH.index(to):
+        return "ok" if role in MOCKUP_GATE_OVERRIDE else "invalid"
+    return "ok"
 
 
 @pytest.mark.parametrize("role", ["admin", "manager", "production", "avery", "customer_entry"])
@@ -67,7 +75,7 @@ def test_every_move_for_each_role(role, make_user, job_at):
                 continue
             job = job_at(frm)
             try:
-                services.move(job, to, user=user, note="reason given")
+                services.move(job, to, user=user, note="reason given", **approval_for(job))
                 got = "ok"
             except PermissionDenied:
                 got = "denied"
@@ -138,7 +146,8 @@ def test_mockup_approval_suggests_due_date_14_business_days_mon_to_thu(
 ):
     # Thursday 12 Nov 2026, evening in Edmonton (already Friday in UTC).
     _at(monkeypatch, datetime(2026, 11, 12, 20, 0, tzinfo=EDMONTON))
-    job = services.move(job_at(Status.MOCKUP_SENT), Status.MOCKUP_APPROVED, user=manager)
+    job = job_at(Status.MOCKUP_SENT)
+    job = services.move(job, Status.MOCKUP_APPROVED, user=manager, **approval_for(job))
     # 14 Mon-Thu days after Thu 12 Nov: 16-19, 23-26, 30 Nov-3 Dec, 7-8 Dec.
     assert job.suggested_due_date == date(2026, 12, 8)
     assert job.due_date == date(2026, 12, 8)
@@ -148,7 +157,7 @@ def test_mockup_approval_suggests_due_date_14_business_days_mon_to_thu(
 def test_mockup_approval_keeps_a_due_date_already_set(manager, job_at, monkeypatch):
     _at(monkeypatch, datetime(2026, 11, 12, 10, 0, tzinfo=EDMONTON))
     job = job_at(Status.MOCKUP_SENT, due_date=date(2026, 11, 30))
-    job = services.move(job, Status.MOCKUP_APPROVED, user=manager)
+    job = services.move(job, Status.MOCKUP_APPROVED, user=manager, **approval_for(job))
     assert job.due_date == date(2026, 11, 30)
     assert job.suggested_due_date == date(2026, 12, 8)
 
@@ -157,7 +166,8 @@ def test_holidays_and_turnaround_come_from_settings(manager, job_at, monkeypatch
     AppSetting.objects.create(key="holidays", value=["2026-11-23"])
     AppSetting.objects.create(key="turnaround_business_days", value=10)
     _at(monkeypatch, datetime(2026, 11, 12, 10, 0, tzinfo=EDMONTON))
-    job = services.move(job_at(Status.MOCKUP_SENT), Status.MOCKUP_APPROVED, user=manager)
+    job = job_at(Status.MOCKUP_SENT)
+    job = services.move(job, Status.MOCKUP_APPROVED, user=manager, **approval_for(job))
     # 10 days, skipping Mon 23 Nov: 16-19, 24-26, 30 Nov, 1-2 Dec.
     assert job.suggested_due_date == date(2026, 12, 2)
 
@@ -314,7 +324,9 @@ def test_jobs_at_quote_approved_move_to_invoiced(job_at):
 
 def test_invoiced_goes_straight_to_mockup_sent(manager, job_at):
     assert Status.MOCKUP_IN_PROGRESS not in flow.PATH
-    job = services.move(job_at(Status.INVOICED), Status.MOCKUP_SENT, user=manager)
+    job = job_at(Status.INVOICED)
+    version = mockup_version(job)
+    job = services.move(job, Status.MOCKUP_SENT, user=manager, mockup=version.pk)
     assert job.status == Status.MOCKUP_SENT  # one step forward: no reason needed
 
 

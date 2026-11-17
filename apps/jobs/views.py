@@ -10,14 +10,14 @@ from django.views.decorators.http import require_POST
 from apps.production.models import DecorationMethod, ProductionTask
 from apps.sales.models import Inquiry
 
-from . import assignment, board, editing, files, money, services, timeline
+from . import assignment, board, editing, files, mockups, money, services, timeline
 from .editing import Locked
 from .flags import Flagger
 from .forms import ItemForm, JobDetailsForm, NoteForm, TaskForm
 from .models import Job, JobFile, JobItem, PaymentStatus
 from .services import InvalidMove
 
-TABS = ["items", "timeline", "details"]
+TABS = ["items", "mockups", "timeline", "details"]
 
 
 def _errors(exc: ValidationError) -> str:
@@ -119,7 +119,20 @@ def job_detail(request, pk):
         "assignable_ids": {p.pk for p in assignable},
         "assign_others": any(p.pk != request.user.pk for p in assignable),
         "can_assign": job.status not in assignment.CLOSED,
+        # For the Mock-up sent and Mock-up approved forms in the header.
+        "mockup_versions": list(job.mockups.all()),
+        "approval_checks": mockups.checks(),
+        "approved_mockup": mockups.approved(job),
     }
+    sent = [v for v in context["mockup_versions"] if v.sent_at]
+    context["sent_mockup_id"] = max(sent, key=lambda v: v.sent_at).pk if sent else None
+    if tab == "mockups":
+        context["mockup_rows"] = mockups.states(job)
+        context["mockup_files"] = [
+            f
+            for f in job.files.all()
+            if f.extension in mockups.FILE_TYPES and not f.mockup_versions.exists()
+        ]
     if tab == "details":
         context["files"] = list(job.files.select_related("uploaded_by"))
         context["file_types"] = ",".join(f".{e}" for e in sorted(files.ALLOWED))
@@ -165,7 +178,17 @@ def job_action(request, pk):
         if money.has_amount(note):
             raise InvalidMove(money.MESSAGE)
         if action == "move":
-            services.move(job, request.POST.get("to_status", ""), user=user, note=note)
+            services.move(
+                job,
+                request.POST.get("to_status", ""),
+                user=user,
+                note=note,
+                mockup=request.POST.get("mockup"),
+                approval={
+                    "approved_by": request.POST.get("approved_by", ""),
+                    "ticked": request.POST.getlist("checks"),
+                },
+            )
         elif action == "skip_mockup":
             services.skip_mockup(job, user=user, note=note)
         elif action == "reopen_mockup":
@@ -358,3 +381,23 @@ def file_delete(request, pk, file_pk):
     else:
         messages.success(request, f"Removed {f.name}.")
     return redirect(_job_url(f.job, "details"))
+
+
+@login_required
+@require_POST
+def mockup_add(request, pk):
+    job = get_object_or_404(Job, pk=pk)
+    chosen = request.POST.get("file", "")
+    try:
+        mockup = mockups.add_version(
+            job,
+            user=request.user,
+            file=job.files.filter(pk=chosen).first() if chosen.isdigit() else None,
+            upload=request.FILES.get("upload"),
+            note=request.POST.get("note", ""),
+        )
+    except (ValidationError, PermissionDenied) as exc:
+        messages.error(request, " ".join(getattr(exc, "messages", [str(exc)])))
+    else:
+        messages.success(request, f"Mock-up {mockup} added.")
+    return redirect(_job_url(job, "mockups"))

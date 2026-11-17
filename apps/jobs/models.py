@@ -352,3 +352,55 @@ class JobFile(models.Model):
     def is_image(self) -> bool:
         """Shown as a thumbnail and opened in the browser (not SVG: it can carry script)."""
         return self.extension in {"png", "jpg", "jpeg", "gif", "webp"}
+
+
+class MockupVersion(models.Model):
+    """A mock-up sent (or to be sent) to the customer by email: v1, v2 ... of a file on the
+    job (FR-10). Older versions stay; the one the customer approved is marked by its
+    MockupApproval."""
+
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="mockups")
+    version = models.PositiveSmallIntegerField(editable=False)
+    file = models.ForeignKey(JobFile, on_delete=models.PROTECT, related_name="mockup_versions")
+    note = models.CharField(max_length=300, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    # When a person moved the job to Mock-up sent naming this version.
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "proof"
+        ordering = ["-version"]
+        constraints = [
+            models.UniqueConstraint(fields=["job", "version"], name="proof_job_version_unique"),
+        ]
+        permissions = [
+            ("approve_mockup", "Can move a job to Mock-up approved"),
+            ("override_mockup_gate", "Can move a job past Mock-up approved without approval"),
+        ]
+
+    def __str__(self) -> str:
+        return f"v{self.version}"
+
+
+class MockupApproval(models.Model):
+    """The customer's email approval of a mock-up version, as staff recorded it (FR-11):
+    who approved, and the checks ticked before the job moved to Mock-up approved."""
+
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="mockup_approvals")
+    mockup = models.ForeignKey(MockupVersion, on_delete=models.PROTECT, related_name="approvals")
+    approved_by_name = models.CharField("approved by", max_length=200)
+    checks = models.JSONField(default=list)
+    saved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    approved_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "mockup_approval"
+        ordering = ["-approved_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"{self.mockup} approved by {self.approved_by_name}"

@@ -61,3 +61,25 @@ def job_at(customer):
         return Job.objects.create(customer=customer, title="50 tees", status=status, **fields)
 
     return make
+
+
+def mockup_version(job, name="mockup.png"):
+    """A mock-up version on the job, its file already stored (tests don't need the bytes)."""
+    from django.db.models import Max
+
+    from apps.jobs.models import JobFile, MockupVersion
+
+    f = JobFile.objects.create(job=job, file=f"job_files/{job.pk}/{name}", name=name, size=1)
+    last = job.mockups.aggregate(n=Max("version"))["n"] or 0
+    return MockupVersion.objects.create(job=job, version=last + 1, file=f)
+
+
+def approval_for(job, approved_by="Pat Doe"):
+    """What staff give to move a job to Mock-up approved: a version, a name, every tick."""
+    from apps.jobs import mockups
+
+    version = job.mockups.first() or mockup_version(job)
+    return {
+        "mockup": version.pk,
+        "approval": {"approved_by": approved_by, "ticked": mockups.checks()},
+    }

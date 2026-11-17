@@ -1,0 +1,20 @@
+{% comment %}Fields for moving a job to Mock-up sent or Mock-up approved (see apps.jobs.mockups).{% endcomment %}
+{% if to == "mockup_sent" %}
+  {% if mockup_versions %}
+    <label>Version emailed to the customer</label>
+    <select name="mockup" required>{% for v in mockup_versions %}<option value="{{ v.pk }}">Mock-up {{ v }}{% if v.note %} · {{ v.note|truncatechars:50 }}{% endif %}</option>{% endfor %}</select>
+  {% else %}
+    <p class="warn" style="margin:6px 0">Add the mock-up on the <a href="?tab=mockups">Mock-ups tab</a> first.</p>
+  {% endif %}
+{% else %}
+  <label>Version the customer approved</label>
+  <select name="mockup" required>{% for v in mockup_versions %}<option value="{{ v.pk }}" {% if v.pk == sent_mockup_id %}selected{% endif %}>Mock-up {{ v }}{% if v.note %} · {{ v.note|truncatechars:50 }}{% endif %}</option>{% endfor %}</select>
+  <label>Approved by <span class="muted">(the name in their email)</span></label>
+  <input type="text" name="approved_by" maxlength="200" required>
+  <fieldset class="approval-checks">
+    <legend>Before approving</legend>
+    <label class="check-all"><input type="checkbox" onclick="this.closest('fieldset').querySelectorAll('input[name=checks]').forEach(c => { c.checked = this.checked; })"> Check all</label>
+    {% for c in approval_checks %}<label><input type="checkbox" name="checks" value="{{ c }}" required> {{ c }}</label>{% endfor %}
+  </fieldset>
+{% endif %}
+{% if with_note %}<label>Note <span class="muted">(optional)</span></label><input type="text" name="note">{% endif %}
