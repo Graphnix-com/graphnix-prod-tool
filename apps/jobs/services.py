@@ -66,6 +66,11 @@ def _on_enter(job: Job, status: str, now) -> None:
         )
         if job.due_date is None:
             job.due_date = job.suggested_due_date
+    elif status == Status.READY_FOR_PRODUCTION:
+        # Released: its planned tasks join their station queues.
+        from apps.production.models import TaskStatus
+
+        job.tasks.filter(status=TaskStatus.BLOCKED).update(status=TaskStatus.QUEUED)
     elif status == Status.CLOSED:
         job.closed_at = now
 
@@ -179,6 +184,8 @@ def move(
     mockup=None,
     approval: dict | None = None,
     skipping_mockup: bool = False,
+    qa_passed: bool = False,
+    shipment_recorded: bool = False,
 ) -> Job:
     """Move a job along the path: one stage forward, or (with a reason) anywhere else.
 
@@ -194,6 +201,11 @@ def move(
     extra = {}
     sent = approved = None
     if source == JobStatusHistory.Source.USER:
+        # QA → Ready is the QA check's pass (Managers); Shipped needs the pickup or shipment.
+        if job.status == Status.QA and to_status == Status.READY and not qa_passed:
+            raise InvalidMove("Use the QA check to pass this job.")
+        if to_status == Status.SHIPPED and not shipment_recorded:
+            raise InvalidMove("Record the pickup or shipment to move this job to Shipped.")
         if to_status == Status.MOCKUP_SENT:
             sent = mockups.for_sent(job, mockup)
             note = "; ".join(p for p in (f"Mock-up {sent} sent", note) if p)
@@ -494,14 +506,26 @@ def actions_for(job: Job, user) -> dict:
             "can_override": bool(gate) and user.has_perm(gates.OVERRIDE),
             # The two mock-up moves are forms: which version, and for approval the ticks.
             "mockup_form": nxt in (Status.MOCKUP_SENT, Status.MOCKUP_APPROVED),
+            # Ready → Shipped is the pickup or shipment form.
+            "shipment_form": nxt == Status.SHIPPED,
         }
+    if status == Status.QA:
+        forward = None  # the QA check (Managers) passes or fails it
     jump_targets = []
     if override and status in flow.PATH and status != Status.CLOSED:
         # Mock-up sent and approved are reached through their forms, never by a jump.
         jump_targets = [
             {"to": s, "label": Status(s).label}
             for s in flow.PATH
-            if s not in (status, nxt, Status.CLOSED, Status.MOCKUP_SENT, Status.MOCKUP_APPROVED)
+            if s
+            not in (
+                status,
+                nxt,
+                Status.CLOSED,
+                Status.MOCKUP_SENT,
+                Status.MOCKUP_APPROVED,
+                Status.SHIPPED,
+            )
         ]
     return {
         "forward": forward,
@@ -513,4 +537,5 @@ def actions_for(job: Job, user) -> dict:
         "reopen": user.has_perm(flow.REOPEN) and status == Status.CANCELLED,
         "jump_targets": jump_targets,
         "hold_reasons": HoldReason.choices,
+        "qa_check": status == Status.QA and user.has_perm("production.run_qa_check"),
     }

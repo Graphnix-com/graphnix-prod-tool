@@ -106,6 +106,7 @@ class ProductionTask(models.Model):
             ("assign_any_task", "Can assign tasks to anyone"),
             ("assign_staff_task", "Can assign tasks to anyone but Admin/Owner"),
             ("take_task", "Can take a task for themselves"),
+            ("plan_queue", "Can reorder station queues and set planned dates"),
         ]
         indexes = [
             models.Index(fields=["station", "status", "queue_rank"]),
@@ -120,3 +121,30 @@ class ProductionTask(models.Model):
         if self.station_id is None:
             self.station = self.decoration_method.stations.filter(is_active=True).first()
         super().save(*args, **kwargs)
+
+
+class QACheck(models.Model):
+    """One QA check on a finished job (FR-26): a pass or a fail, no checklist (decided 17 Nov
+    2026). A fail names the tasks sent back to the floor as rework."""
+
+    class Result(models.TextChoices):
+        PASS = "pass", "Pass"
+        FAIL = "fail", "Fail"
+
+    job = models.ForeignKey("jobs.Job", on_delete=models.CASCADE, related_name="qa_checks")
+    result = models.CharField(max_length=10, choices=Result.choices)
+    notes = models.TextField(blank=True)
+    rework_task_ids = models.JSONField(default=list, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    reviewed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "qa_check"
+        ordering = ["-reviewed_at", "-id"]
+        verbose_name = "QA check"
+        permissions = [("run_qa_check", "Can pass or fail a job's QA check")]
+
+    def __str__(self) -> str:
+        return f"QA {self.get_result_display().lower()}"

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}My Tasks · GRAPHNIX tracker{% endblock %}
+{% block content %}
+<p class="muted" style="margin:0"><a href="{% url 'production:floor' %}">Floor</a> /</p>
+<h1>My Tasks</h1>
+<p class="sub">Your tasks on jobs released to production, in queue order.</p>
+{% for task in own %}{% include "production/_task_row.html" with show_station=True %}{% empty %}<p class="muted">Nothing assigned to you.</p>{% endfor %}
+{% if station %}
+  <h2>Unassigned at {{ station.name }}</h2>
+  {% for task in unassigned %}{% include "production/_task_row.html" %}{% empty %}<p class="muted">Nothing unassigned there.</p>{% endfor %}
+{% endif %}
+{% endblock %}

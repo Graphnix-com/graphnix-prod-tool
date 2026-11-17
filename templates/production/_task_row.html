@@ -1,0 +1,26 @@
+<div class="task-row{% if task.status == 'rework' %} rework{% endif %}">
+  <div class="thumb">{% if task.approved_mockup and task.approved_mockup.file.is_image %}<a href="{% url 'jobs:detail' task.job.pk %}?tab=mockups"><img src="{% url 'jobs:file_download' task.job.pk task.approved_mockup.file.pk %}" alt="Approved mock-up {{ task.approved_mockup }}" loading="lazy"></a>{% elif task.approved_mockup %}<a href="{% url 'jobs:detail' task.job.pk %}?tab=mockups" class="ext">{{ task.approved_mockup.file.extension|upper }}</a>{% else %}<span class="ext" title="No approved mock-up">—</span>{% endif %}</div>
+  <div class="body">
+    <div><a href="{% url 'jobs:detail' task.job.pk %}"><strong>{{ task.job.display_number }}</strong></a> {{ task.job.customer.display_name }}
+      {% if task.job.priority == 1 %}<span class="pill sooner">Sooner</span>{% endif %}
+      {% if task.status == "rework" %}<span class="pill sooner">Rework</span>{% endif %}
+      <span class="muted">· {{ task.job.get_status_display }}{% if task.job.due_date %} · due {{ task.job.due_date|date:"D j M" }}{% endif %}</span>
+      {% if show_station %}<span class="muted">· {{ task.station }}</span>{% endif %}
+    </div>
+    <div>{{ task.decoration_method }}{% if task.placement %} · {{ task.placement }}{% endif %}{% if task.job_item %} — {{ task.job_item.description }}{% if task.job_item.color %} {{ task.job_item.color }}{% endif %}: {% for s in task.job_item.sizes.all %}{{ s.size }} {{ s.quantity }}{% if not forloop.last %} · {% endif %}{% endfor %}{% endif %}</div>
+    {% if task.notes %}<div class="muted">{{ task.notes|linebreaksbr }}</div>{% endif %}
+    {% if task.status == "rework" and task.rework_reason %}<div class="warn">Rework: {{ task.rework_reason }}</div>{% endif %}
+    {% if task.depends_on %}<div class="muted">After {{ task.depends_on }}</div>{% endif %}
+    {% if task.scheduled_date %}<div class="muted">Planned {{ task.scheduled_date|date:"D j M" }}</div>{% endif %}
+  </div>
+  <div class="side">
+    <div>{% if task.assigned_to %}{{ task.assigned_to.get_short_name }}{% else %}<span class="muted">Unassigned</span>{% endif %}</div>
+    {% if task.can_take and not task.assigned_to %}
+      <form method="post" action="{% url 'jobs:task_assign' task.job.pk task.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="assignee" value="me"><input type="hidden" name="next" value="{{ here }}"><button type="submit">Take</button></form>
+    {% endif %}
+    {% if can_plan %}
+      <form method="post" action="{% url 'production:task_move' task.pk %}" class="inline">{% csrf_token %}<button type="submit" name="dir" value="up" title="Move up" aria-label="Move up">↑</button><button type="submit" name="dir" value="down" title="Move down" aria-label="Move down">↓</button></form>
+      <form method="post" action="{% url 'production:task_plan' task.pk %}" class="inline plan">{% csrf_token %}<input type="date" name="day" value="{{ task.scheduled_date|date:'Y-m-d' }}" aria-label="Planned day"><button type="submit">Plan</button></form>
+    {% endif %}
+  </div>
+</div>

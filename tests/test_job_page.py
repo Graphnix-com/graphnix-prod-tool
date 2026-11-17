@@ -294,9 +294,12 @@ def test_buttons_follow_the_rules(manager, make_user, job_at):
     assert actions["skip_mockup"] and actions["hold"] and actions["cancel"]
     assert not actions["reopen_mockup"] and not actions["release"]
 
-    avery = services.actions_for(job_at(Status.QA), make_user("avery"))
-    assert avery["forward"]["to"] == Status.READY
+    avery = services.actions_for(job_at(Status.READY), make_user("avery"))
+    assert avery["forward"]["to"] == Status.SHIPPED and avery["forward"]["shipment_form"]
     assert not avery["hold"] and not avery["jump_targets"]
+    at_qa = services.actions_for(job_at(Status.QA), make_user("avery"))
+    assert at_qa["forward"] is None and not at_qa["qa_check"]  # the QA check is the Managers'
+    assert services.actions_for(job_at(Status.QA), manager)["qa_check"]
 
     production = services.actions_for(job_at(Status.QA), make_user("production"))
     assert production["forward"] is None

@@ -49,7 +49,15 @@ MOCKUP_GATE_OVERRIDE = {"admin"}  # past Mock-up approved without stopping there
 
 
 def expected(role: str, frm: str, to: str) -> str:
-    """'ok', 'denied' (no permission) or 'invalid' (no one may)."""
+    """'ok', 'denied' (no permission) or 'invalid' (no one may, or only through a form:
+    QA → Ready is the QA check, anything into Shipped is the pickup or shipment form)."""
+    got = _expected(role, frm, to)
+    if got == "ok" and (to == Status.SHIPPED or (frm == Status.QA and to == Status.READY)):
+        return "invalid"
+    return got
+
+
+def _expected(role: str, frm: str, to: str) -> str:
     if frm == Status.CLOSED:
         return "invalid"
     if PATH.index(to) == PATH.index(frm) + 1:

@@ -412,3 +412,55 @@ class MockupApproval(models.Model):
 
     def __str__(self) -> str:
         return f"{self.mockup} approved by {self.approved_by_name}"
+
+
+class Shipment(models.Model):
+    """How a finished job left the shop (FR-27): picked up, sent by courier or delivered."""
+
+    class Method(models.TextChoices):
+        PICKUP = "pickup", "Picked up"
+        COURIER = "courier", "Courier"
+        DELIVERY = "delivery", "Delivered by Graphnix"
+
+    class Carrier(models.TextChoices):
+        CANADA_POST = "canada_post", "Canada Post"
+        PUROLATOR = "purolator", "Purolator"
+        UPS = "ups", "UPS"
+        FEDEX = "fedex", "FedEx"
+        OTHER = "other", "Other"
+
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="shipments")
+    method = models.CharField(max_length=20, choices=Method.choices)
+    carrier = models.CharField(max_length=20, choices=Carrier.choices, blank=True)
+    carrier_other = models.CharField("other carrier", max_length=100, blank=True)
+    tracking_number = models.CharField(max_length=100, blank=True)
+    ship_date = models.DateField()
+    picked_up_by = models.CharField("collected by", max_length=200, blank=True)
+    address = models.TextField(blank=True)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "shipment"
+        ordering = ["-ship_date", "-id"]
+
+    def __str__(self) -> str:
+        return self.summary
+
+    @property
+    def carrier_name(self) -> str:
+        if self.carrier == self.Carrier.OTHER:
+            return self.carrier_other or "Other"
+        return self.get_carrier_display()
+
+    @property
+    def summary(self) -> str:
+        if self.method == self.Method.PICKUP:
+            return f"Picked up by {self.picked_up_by}"
+        if self.method == self.Method.COURIER:
+            tracking = f", tracking {self.tracking_number}" if self.tracking_number else ""
+            return f"Shipped by {self.carrier_name}{tracking}"
+        return "Delivered by Graphnix"

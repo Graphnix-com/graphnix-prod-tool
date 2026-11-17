@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Calendar · GRAPHNIX tracker{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+  <h1 style="margin:0">{{ first|date:"F Y" }}</h1>
+  <form method="get" class="inline">
+    <input type="hidden" name="month" value="{{ first|date:'Y-m' }}">
+    <select name="station" onchange="this.form.submit()" aria-label="Station"><option value="">All stations</option>{% for s in stations %}<option value="{{ s.pk }}" {% if station and s.pk == station.pk %}selected{% endif %}>{{ s.name }}</option>{% endfor %}</select>
+  </form>
+  <p style="margin:0"><a class="button" href="?month={{ before|date:'Y-m' }}{% if station %}&station={{ station.pk }}{% endif %}">← {{ before|date:"M" }}</a> <a class="button" href="?{% if station %}station={{ station.pk }}{% endif %}">Today</a> <a class="button" href="?month={{ after|date:'Y-m' }}{% if station %}&station={{ station.pk }}{% endif %}">{{ after|date:"M" }} →</a></p>
+</div>
+<p class="sub">Due dates, tasks planned for a day, and jobs ready for pickup.</p>
+<table class="calendar">
+  <tr>{% for d in "MTWTFSS" %}<th>{{ d }}</th>{% endfor %}</tr>
+  {% for week in weeks %}
+    <tr>
+      {% for cell in week %}
+        <td class="{% if not cell.in_month %}out{% endif %}{% if cell.day == today %} today{% endif %}">
+          <div class="daynum">{{ cell.day.day }}</div>
+          {% for job, flag in cell.jobs %}
+            <a class="cal-job {{ flag|default:'' }}" href="{% url 'jobs:detail' job.pk %}" title="{{ job.title }} · {{ job.get_status_display }}">{{ job.display_number }} {{ job.customer.display_name|truncatechars:18 }}{% if job.status == "ready" and job.fulfillment_method == "pickup" %} · pickup{% endif %}</a>
+          {% endfor %}
+          {% for task in cell.tasks %}
+            <a class="cal-task" href="{% url 'jobs:detail' task.job.pk %}">{{ task.decoration_method }} · {{ task.job.display_number }}</a>
+          {% endfor %}
+        </td>
+      {% endfor %}
+    </tr>
+  {% endfor %}
+</table>
+<p class="help">Job due dates are coloured like the board: red overdue, amber at risk. Grey entries are tasks a Manager planned for that day.</p>
+{% endblock %}

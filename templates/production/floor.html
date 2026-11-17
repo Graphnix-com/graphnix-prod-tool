@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Floor · GRAPHNIX tracker{% endblock %}
+{% block content %}
+<h1>Floor</h1>
+<p class="sub">Tasks of jobs released to production, by station. <a href="{% url 'production:mine' %}">My tasks</a> · <a href="{% url 'production:calendar' %}">Calendar</a></p>
+<div class="names">
+  {% for s in stations %}
+    <a class="name" href="{% url 'production:queue' s.station.pk %}">{{ s.station.name }}<small style="color:var(--quiet)">{{ s.count }} task{{ s.count|pluralize }}</small></a>
+  {% empty %}
+    <p class="muted">No stations yet: they come with the decoration methods.</p>
+  {% endfor %}
+</div>
+{% endblock %}
