@@ -21,4 +21,5 @@ urlpatterns = [
     path("<int:pk>/files/", views.file_add, name="file_add"),
     path("<int:pk>/files/<int:file_pk>/", views.file_download, name="file_download"),
     path("<int:pk>/files/<int:file_pk>/delete/", views.file_delete, name="file_delete"),
+    path("<int:pk>/mockups/", views.mockup_add, name="mockup_add"),
 ]

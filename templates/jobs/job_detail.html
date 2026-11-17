@@ -8,6 +8,7 @@
   {% if job.square_number %}· internal {{ job.job_number }}{% endif %}
   · Due {% if job.due_date %}{{ job.due_date|date:"D j M Y" }}{% else %}<span class="muted">not set</span>{% endif %}
   {% if job.priority == 1 %}<span class="pill sooner">Sooner if possible</span>{% endif %}
+  {% if approved_mockup %}<a href="?tab=mockups" class="pill approved-link">Approved mock-up {{ approved_mockup }}</a>{% endif %}
   {% if job.online_order %}<span class="pill online{% if job.status == "mockup_approved" %} new{% endif %}">{{ job.online_order }}</span>{% endif %}
 </p>
 
@@ -27,6 +28,7 @@
             <input type="hidden" name="to_status" value="{{ actions.forward.to }}">
             <input type="hidden" name="tab" value="{{ tab }}">
             <p class="warn" style="margin:6px 0">{{ actions.forward.gate }}</p>
+            {% if actions.forward.mockup_form %}{% include "jobs/_mockup_fields.html" with to=actions.forward.to with_note=False %}{% endif %}
             <label>Reason to move it anyway</label><input type="text" name="note" required>
             <p><button type="submit">Override and move</button></p>
           </form>
@@ -35,6 +37,16 @@
         <button type="button" disabled title="{{ actions.forward.gate }}">Move to {{ actions.forward.label }}</button>
         <span class="warn">{{ actions.forward.gate }}</span>
       {% endif %}
+    {% elif actions.forward and actions.forward.mockup_form %}
+      <details class="action" {% if tab == "mockups" %}open{% endif %}><summary>Move To {{ actions.forward.label }}</summary>
+        <form method="post" action="{% url 'jobs:action' job.pk %}">
+          {% csrf_token %}<input type="hidden" name="action" value="move">
+          <input type="hidden" name="to_status" value="{{ actions.forward.to }}">
+          <input type="hidden" name="tab" value="{{ tab }}">
+          {% include "jobs/_mockup_fields.html" with to=actions.forward.to with_note=True %}
+          <p><button type="submit" class="primary" {% if not mockup_versions %}disabled{% endif %}>Move to {{ actions.forward.label }}</button></p>
+        </form>
+      </details>
     {% elif actions.forward %}
       <form method="post" action="{% url 'jobs:action' job.pk %}" class="inline">
         {% csrf_token %}<input type="hidden" name="action" value="move">
@@ -112,6 +124,7 @@
 
 <nav class="tabs">
   <a href="?tab=items" class="{% if tab == 'items' %}here{% endif %}">Items And Tasks</a>
+  <a href="?tab=mockups" class="{% if tab == 'mockups' %}here{% endif %}">Mock-ups{% if mockup_versions %} <span class="muted">{{ mockup_versions|length }}</span>{% endif %}</a>
   <a href="?tab=timeline" class="{% if tab == 'timeline' %}here{% endif %}">Timeline</a>
   <a href="?tab=details" class="{% if tab == 'details' %}here{% endif %}">Details</a>
 </nav>
@@ -163,6 +176,50 @@
     <p class="muted">No items yet.</p>
   {% endfor %}
   {% if not editable and perms.jobs.change_job and items %}<p class="muted">Items and tasks are locked once the job is in production.</p>{% endif %}
+
+{% elif tab == "mockups" %}
+  <div class="card">
+    <h2 style="margin-top:0">Mock-ups</h2>
+    <p class="muted" style="margin-top:0">Proofs go to the customer by email. Add each version here, then move the job to Mock-up sent naming it. When the customer approves by email, move it to Mock-up approved.</p>
+    {% for r in mockup_rows %}
+      <div class="mockup {{ r.state }}">
+        <a href="{% url 'jobs:file_download' job.pk r.version.file.pk %}" class="thumb" {% if r.version.file.is_image %}target="_blank" rel="noopener"{% endif %}>
+          {% if r.version.file.is_image %}<img src="{% url 'jobs:file_download' job.pk r.version.file.pk %}" alt="Mock-up {{ r.version }}" loading="lazy">{% else %}<span class="ext">{{ r.version.file.extension|upper }}</span>{% endif %}
+        </a>
+        <div>
+          <div class="vname">Mock-up {{ r.version }}
+            {% if r.state == "approved" %}<span class="badge-approved">APPROVED</span>
+            {% elif r.state == "waiting" %}<span class="pill customer">Sent, waiting on the customer</span>
+            {% elif r.state == "changes" %}<span class="pill">Changes asked</span>
+            {% elif r.state == "draft" %}<span class="pill">Not sent yet</span>
+            {% else %}<span class="pill">Superseded</span>{% endif %}
+          </div>
+          {% if r.approval %}<div class="approved-by">Approved by {{ r.approval.approved_by_name }} on {{ r.approval.approved_at|date:"D j M Y" }} · recorded by {{ r.approval.saved_by.get_short_name|default:"—" }}</div>{% endif %}
+          {% if r.version.note %}<div>{{ r.version.note }}</div>{% endif %}
+          <div class="muted" style="font-size:13px">{{ r.version.file.name }} · added {{ r.version.created_at|date:"j M" }}{% if r.version.created_by %} by {{ r.version.created_by.get_short_name }}{% endif %}{% if r.version.sent_at %} · sent {{ r.version.sent_at|date:"j M" }}{% endif %}</div>
+        </div>
+      </div>
+    {% empty %}
+      <p class="muted">No mock-ups yet.</p>
+    {% endfor %}
+    {% if perms.jobs.add_mockupversion %}
+      <form method="post" action="{% url 'jobs:mockup_add' job.pk %}" enctype="multipart/form-data" style="margin-top:12px">
+        {% csrf_token %}
+        <h3 style="margin-bottom:4px">Add a version</h3>
+        {% if mockup_files %}
+          <label>A file already on the job</label>
+          <select name="file"><option value="">Choose…</option>{% for f in mockup_files %}<option value="{{ f.pk }}">{{ f.name }}</option>{% endfor %}</select>
+          <label>or upload a new one</label>
+        {% else %}
+          <label>Upload the mock-up</label>
+        {% endif %}
+        <input type="file" name="upload" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf" aria-label="Mock-up file">
+        <label>Note <span class="muted">(optional, e.g. what changed)</span></label><input type="text" name="note" maxlength="300">
+        <p class="help">An image or a PDF: what the customer sees in their email.</p>
+        <p style="margin-bottom:0"><button type="submit">Add version</button></p>
+      </form>
+    {% endif %}
+  </div>
 
 {% elif tab == "timeline" %}
   {% if perms.jobs.add_jobnote %}

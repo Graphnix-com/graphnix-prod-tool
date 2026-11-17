@@ -12,9 +12,9 @@ from django.utils import timezone
 from apps.audit.services import record
 from apps.sales.models import Channel, Inquiry
 
-from . import flow, gates, workdays
+from . import flow, gates, mockups, workdays
 from .flow import InvalidMove
-from .models import HoldReason, Job, JobStatusHistory, Status
+from .models import HoldReason, Job, JobStatusHistory, MockupApproval, Status
 
 __all__ = [
     "InvalidMove",
@@ -169,33 +169,90 @@ def convert_inquiry(
 
 
 @transaction.atomic
-def move(job: Job, to_status: str, *, user, note: str = "", source: str = "user") -> Job:
-    """Move a job along the path: one stage forward, or (with a reason) anywhere else."""
+def move(
+    job: Job,
+    to_status: str,
+    *,
+    user,
+    note: str = "",
+    source: str = "user",
+    mockup=None,
+    approval: dict | None = None,
+    skipping_mockup: bool = False,
+) -> Job:
+    """Move a job along the path: one stage forward, or (with a reason) anywhere else.
+
+    A person moving a job to Mock-up sent names the version (`mockup`); to Mock-up approved,
+    the version, who approved and the ticks (`approval`). Passing Mock-up approved without
+    stopping there needs Skip mock-up or an Admin's override (the mock-up gate, FR-12)."""
     job = _locked(job)
     kind = flow.classify(job.status, to_status)
     _require(user, flow.permission_for(kind, job.status))
     if kind == flow.JUMP:
         note = _require_reason(note)
+    note = (note or "").strip()
+    extra = {}
+    sent = approved = None
+    if source == JobStatusHistory.Source.USER:
+        if to_status == Status.MOCKUP_SENT:
+            sent = mockups.for_sent(job, mockup)
+            note = "; ".join(p for p in (f"Mock-up {sent} sent", note) if p)
+            extra["mockup"] = [None, str(sent)]
+        elif to_status == Status.MOCKUP_APPROVED:
+            approved = mockups.for_approval(job, user, mockup_id=mockup, **(approval or {}))
+            note = "; ".join(
+                p
+                for p in (
+                    f"Mock-up {approved['mockup']} approved by {approved['approved_by']}",
+                    note,
+                )
+                if p
+            )
+            extra.update(
+                mockup=[None, str(approved["mockup"])],
+                approved_by=[None, approved["approved_by"]],
+                checks=[None, "; ".join(approved["checks"])],
+            )
+        elif not skipping_mockup and mockups.crosses_approval(job.status, to_status):
+            if not user.has_perm(mockups.OVERRIDE):
+                raise InvalidMove(
+                    "This passes Mock-up approved without the customer's approval being "
+                    "recorded. Move it to Mock-up approved first. An Admin can override it."
+                )
+            extra["mockup_gate"] = [None, "overridden"]
     gate = gates.blocking(job, to_status, user)
-    extra = None
     if gate:
         # FR-07: only an Admin, and only with a reason.
         if not user.has_perm(gates.OVERRIDE):
             raise InvalidMove(
                 f"{gate}." if gate == gates.HIDDEN else f"{gate}. An Admin can override it."
             )
-        if not (note or "").strip():
+        if not note:
             raise InvalidMove(f"{gate}. Give a reason to move it anyway.")
-        extra = {"payment_gate": [None, gate]}
-    return _change_status(
+        extra["payment_gate"] = [None, gate]
+    overridden = gate or "mockup_gate" in extra
+    job = _change_status(
         job,
         to_status,
         user,
-        (note or "").strip(),
+        note,
         source,
-        "status_change" if kind == flow.FORWARD and not gate else "override",
-        extra,
+        "status_change" if kind == flow.FORWARD and not overridden else "override",
+        extra or None,
     )
+    if sent is not None:
+        sent.sent_at = job.status_changed_at
+        sent.save(update_fields=["sent_at"])
+    if approved is not None:
+        MockupApproval.objects.create(
+            job=job,
+            mockup=approved["mockup"],
+            approved_by_name=approved["approved_by"],
+            checks=approved["checks"],
+            saved_by=user,
+            approved_at=job.status_changed_at,
+        )
+    return job
 
 
 @transaction.atomic
@@ -323,7 +380,7 @@ def skip_mockup(job: Job, *, user, note: str) -> Job:
     """Invoiced → Materials ordered, e.g. online store orders."""
     if job.status not in flow.SKIP_MOCKUP_FROM:
         raise InvalidMove("The mock-up can only be skipped from Invoiced.")
-    return move(job, flow.SKIP_MOCKUP_TO, user=user, note=note)
+    return move(job, flow.SKIP_MOCKUP_TO, user=user, note=note, skipping_mockup=True)
 
 
 def reopen_mockup(job: Job, *, user, note: str) -> Job:
@@ -409,20 +466,27 @@ def actions_for(job: Job, user) -> dict:
     override = user.has_perm(flow.OVERRIDE)
     nxt = flow.next_status(status)
     forward = None
-    if nxt is not None and status in flow.LANE and user.has_perm(flow.LANE[status]):
+    if nxt == Status.MOCKUP_APPROVED and not user.has_perm(mockups.APPROVE):
+        nxt_allowed = False
+    else:
+        nxt_allowed = nxt is not None and status in flow.LANE and user.has_perm(flow.LANE[status])
+    if nxt_allowed:
         gate = gates.blocking(job, nxt, user)
         forward = {
             "to": nxt,
             "label": Status(nxt).label,
             "gate": gate,
             "can_override": bool(gate) and user.has_perm(gates.OVERRIDE),
+            # The two mock-up moves are forms: which version, and for approval the ticks.
+            "mockup_form": nxt in (Status.MOCKUP_SENT, Status.MOCKUP_APPROVED),
         }
     jump_targets = []
     if override and status in flow.PATH and status != Status.CLOSED:
+        # Mock-up sent and approved are reached through their forms, never by a jump.
         jump_targets = [
             {"to": s, "label": Status(s).label}
             for s in flow.PATH
-            if s not in (status, nxt, Status.CLOSED)
+            if s not in (status, nxt, Status.CLOSED, Status.MOCKUP_SENT, Status.MOCKUP_APPROVED)
         ]
     return {
         "forward": forward,

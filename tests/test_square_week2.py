@@ -85,8 +85,9 @@ def test_skipping_ahead_doesnt_avoid_the_gate(job_at, manager):
     invoiced = job_at(Status.INVOICED)
     with pytest.raises(InvalidMove, match="Needs payment"):
         services.skip_mockup(invoiced, user=manager, note="Online store order")
+    approved = job_at(Status.MOCKUP_APPROVED)
     with pytest.raises(InvalidMove, match="Needs payment"):
-        services.move(invoiced, Status.IN_PRODUCTION, user=manager, note="Rush")
+        services.move(approved, Status.IN_PRODUCTION, user=manager, note="Rush")
 
 
 def test_moving_back_is_never_gated(job_at, manager):

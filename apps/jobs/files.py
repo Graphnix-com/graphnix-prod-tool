@@ -60,6 +60,11 @@ def add(job, uploads, *, user) -> list[JobFile]:
 def remove(f: JobFile, *, user) -> None:
     if not user.has_perm(REMOVE):
         raise PermissionDenied("Only Admin and Manager can remove files.")
+    version = f.mockup_versions.first()
+    if version is not None:
+        raise PermissionDenied(
+            f"{f.name} is mock-up {version}; it stays so the approval record holds."
+        )
     job, name = f.job, f.name
     with transaction.atomic():
         record(user, f, "delete", {"file": [name, None]}, job=job)
