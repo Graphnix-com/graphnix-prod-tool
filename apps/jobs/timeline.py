@@ -27,7 +27,15 @@ _NOUN = {
     "jobs.mockupversion": "Mock-up",
     "production.productiontask": "Task",
 }
-_VERB = {"create": "added", "update": "changed", "delete": "removed"}
+_VERB = {
+    "create": "added",
+    "update": "changed",
+    "delete": "removed",
+    "ordered": "marked ordered",
+    "received": "delivery received",
+    "closed_short": "line closed short",
+    "cancel": "cancelled",
+}
 # Context keys recorded with an edit, not fields that changed.
 _CONTEXT = {"line", "task", "description", "file", "mockup"}
 # Money from Square: only for people who can see money (NFR-02).
@@ -76,6 +84,13 @@ def _edit_entry(entry: AuditLog) -> Entry:
     if "line" in changes and entry.entity_type == "jobs.jobitem":
         line = changes["line"][0] or changes["line"][1]
         noun = f"Item {line}"
+    if entry.entity_type == "purchasing.purchaseorder" and "po" in changes:
+        noun = f"Purchase order {changes['po'][1] or changes['po'][0]}"
+        detail = (changes.get("line") or changes.get("reason") or [None, None])[1] or ""
+        who = str(entry.actor) if entry.actor else "System"
+        return Entry(
+            entry.at, KIND_EDIT, who, f"{noun} {_VERB.get(entry.action, entry.action)}", detail
+        )
     if "mockup" in changes and entry.entity_type == "jobs.mockupversion":
         noun = f"Mock-up {changes['mockup'][1] or changes['mockup'][0]}"
     title = f"{noun} {_VERB.get(entry.action, entry.action)}"

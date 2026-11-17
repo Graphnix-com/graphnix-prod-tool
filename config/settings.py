@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "apps.m365",
     "apps.integrations",
     "apps.production",
+    "apps.purchasing",
     "apps.sales",
 ]
 

@@ -40,6 +40,9 @@
     .pill.sooner, .pill.refunded { background: #fee2e2; color: #991b1b; }
     .pill.paid { background: #dcfce7; color: #166534; }
     .pill.online { background: #e0e7ff; color: #3730a3; }
+    .materials { margin-top: 6px; font-size: 14px; }
+    .materials.in { color: var(--good); } .materials.waiting, .materials.none { color: var(--warn); }
+    .materials button { font-size: 12px; padding: 2px 8px; margin-left: 6px; }
     .pill.approved-link { background: #dcfce7; color: #166534; text-decoration: none; }
     .mockup { display: flex; gap: 14px; align-items: flex-start; padding: 10px; margin-bottom: 10px;
               border: 1px solid var(--line); border-radius: 8px; }
@@ -186,6 +189,7 @@
       {% if user.is_authenticated %}
         {% if perms.jobs.view_money %}<a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}here{% endif %}">Home</a>{% endif %}
         {% if perms.jobs.view_job %}<a href="{% url 'jobs:list' %}" class="{% if request.resolver_match.app_name == 'jobs' %}here{% endif %}">Board</a>{% endif %}
+        {% if perms.purchasing.view_purchaseorder %}<a href="{% url 'purchasing:list' %}" class="{% if request.resolver_match.app_name == 'purchasing' %}here{% endif %}">Purchasing</a>{% endif %}
         {% if perms.sales.view_inquiry %}<a href="{% url 'sales:list' %}" class="{% if request.resolver_match.app_name == 'sales' %}here{% endif %}">Requests{% if new_requests %} <span class="pill customer" title="New requests waiting">{{ new_requests }}</span>{% endif %}</a>{% endif %}
         {% if perms.customers.view_customer %}<a href="{% url 'customers:list' %}" class="{% if request.resolver_match.app_name == 'customers' %}here{% endif %}">Customers</a>{% endif %}
         {% if perms.integrations.link_square_invoice %}<a href="{% url 'integrations:inbox' %}" class="{% if request.resolver_match.url_name == 'inbox' %}here{% endif %}">Invoices{% if square_to_link %} <span class="pill customer" title="Invoices and estimates to link to a job">{{ square_to_link }}</span>{% endif %}</a>{% endif %}

@@ -25,6 +25,7 @@ ADMIN_APPS = [
     "integrations",
     "jobs",
     "production",
+    "purchasing",
     "sales",
 ]
 
@@ -61,6 +62,11 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "jobs.add_mockupversion",
         "jobs.view_mockupversion",
         "jobs.approve_mockup",
+        "jobs.check_in_materials",
+        "purchasing.add_purchaseorder",
+        "purchasing.change_purchaseorder",
+        "purchasing.view_purchaseorder",
+        "purchasing.receive_purchaseorder",
         "integrations.view_squareinvoice",
         "integrations.link_square_invoice",
         "production.assign_staff_task",
@@ -73,6 +79,9 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
     PRODUCTION: [
         "jobs.view_job",
         "jobs.view_mockupversion",
+        "jobs.check_in_materials",
+        "purchasing.view_purchaseorder",
+        "purchasing.receive_purchaseorder",
         "jobs.add_jobfile",
         "jobs.view_jobfile",
         "jobs.view_jobstatushistory",

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Purchase Orders · GRAPHNIX tracker{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center">
+  <div>
+    <h1>{% if show_all %}All Purchase Orders{% else %}Open Purchase Orders{% endif %}</h1>
+    <p class="sub">{% if show_all %}Newest first. <a href="?">Open only</a>{% else %}Expected soonest first. <a href="?show=all">Show all</a>{% endif %}</p>
+  </div>
+  {% if perms.purchasing.add_purchaseorder %}<a class="button primary" href="{% url 'purchasing:build' %}">Build a PO</a>{% endif %}
+</div>
+<table>
+  <tr><th>PO</th><th>Supplier</th><th>Status</th><th>Expected</th><th>Jobs</th></tr>
+  {% for r in rows %}
+    <tr>
+      <td><a href="{% url 'purchasing:detail' r.po.pk %}"><strong>{{ r.po.po_number }}</strong></a>{% if r.po.supplier_order_ref %} <span class="muted">{{ r.po.supplier_order_ref }}</span>{% endif %}</td>
+      <td>{{ r.po.supplier_name }}</td>
+      <td>{{ r.po.get_status_display }}{% if r.po.is_late %} <span class="flag overdue">Late</span>{% endif %}</td>
+      <td>{{ r.po.expected_at|date:"D j M"|default:"—" }}</td>
+      <td>{% for j in r.jobs %}<a href="{% url 'jobs:detail' j.pk %}">{{ j.display_number }}</a>{% if not forloop.last %}, {% endif %}{% empty %}<span class="muted">Stock</span>{% endfor %}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5" class="muted">No open purchase orders.</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
