@@ -94,19 +94,26 @@ def test_convert_and_edit_jobs_items_and_tasks(as_role, job_at):
 
 
 @pytest.mark.parametrize(
-    ("start", "to", "expected"),
+    ("start", "to", "expected", "form"),
     [
-        (Status.QUOTING, Status.QUOTE_SENT, {"admin", "manager"}),
-        (Status.READY_FOR_PRODUCTION, Status.IN_PRODUCTION, EVERYONE),
-        (Status.IN_PRODUCTION, Status.QA, EVERYONE),
-        (Status.QA, Status.READY, {"admin", "manager", "qa"}),
-        (Status.READY, Status.SHIPPED, {"admin", "manager", "qa"}),
+        (Status.QUOTING, Status.QUOTE_SENT, {"admin", "manager"}, None),
+        (Status.READY_FOR_PRODUCTION, Status.IN_PRODUCTION, EVERYONE, None),
+        (Status.IN_PRODUCTION, Status.QA, EVERYONE, None),
+        # The QA check is the Managers' (decided 17 Nov 2026).
+        (Status.QA, Status.READY, {"admin", "manager"}, {"action": "qa_pass"}),
+        (
+            Status.READY,
+            Status.SHIPPED,
+            {"admin", "manager", "qa"},
+            {"action": "shipment", "method": "pickup", "picked_up_by": "Pat Doe"},
+        ),
     ],
 )
-def test_move_a_job_forward(as_role, job_at, start, to, expected):
+def test_move_a_job_forward(as_role, job_at, start, to, expected, form):
     def probe(c):
         job = job_at(start)
-        c.post(reverse("jobs:action", args=[job.pk]), {"action": "move", "to_status": to})
+        data = form or {"action": "move", "to_status": to}
+        c.post(reverse("jobs:action", args=[job.pk]), data)
         return Job.objects.get(pk=job.pk).status == to
 
     check_row(as_role, expected, probe)

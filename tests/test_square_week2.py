@@ -107,8 +107,12 @@ def test_production_is_told_nothing_about_payment(job_at, make_user):
     AppSetting.objects.create(key=gates.SETTING, value={Status.SHIPPED: "paid"})
     avery = make_user("avery", "Avery")
     job = job_at(Status.READY)
+    from apps.jobs import fulfilment
+
     with pytest.raises(InvalidMove) as refused:
-        services.move(job, Status.SHIPPED, user=avery)
+        fulfilment.record_shipment(
+            job, user=avery, data={"method": "pickup", "picked_up_by": "Pat Doe"}
+        )
     assert "ay" not in str(refused.value).replace("today", "")  # no "pay", "payment", "Unpaid"
     assert str(refused.value) == f"{gates.HIDDEN}."
 

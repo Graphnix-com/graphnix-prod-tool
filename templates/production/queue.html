@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}{{ station.name }} · GRAPHNIX tracker{% endblock %}
+{% block content %}
+<p class="muted" style="margin:0"><a href="{% url 'production:floor' %}">Floor</a> /</p>
+<h1>{{ station.name }}</h1>
+<p class="sub">{{ tasks|length }} task{{ tasks|pluralize }}. Rework first, then Sooner jobs, then {% if can_plan %}your{% else %}the Manager's{% endif %} order, then due date.</p>
+{% for task in tasks %}{% include "production/_task_row.html" %}{% empty %}<p class="muted">Nothing waiting at this station.</p>{% endfor %}
+{% endblock %}

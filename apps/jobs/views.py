@@ -5,16 +5,18 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from apps.production.models import DecorationMethod, ProductionTask
 from apps.sales.models import Inquiry
 
-from . import assignment, board, editing, files, mockups, money, services, timeline
+from . import assignment, board, editing, files, fulfilment, mockups, money, services, timeline
 from .editing import Locked
 from .flags import Flagger
 from .forms import ItemForm, JobDetailsForm, NoteForm, TaskForm
-from .models import Job, JobFile, JobItem, PaymentStatus, Status
+from .models import Job, JobFile, JobItem, PaymentStatus, Shipment, Status
 from .services import InvalidMove
 
 TABS = ["items", "mockups", "timeline", "details"]
@@ -22,6 +24,15 @@ TABS = ["items", "mockups", "timeline", "details"]
 
 def _errors(exc: ValidationError) -> str:
     return " ".join(exc.messages)
+
+
+def _date(text: str):
+    from datetime import date
+
+    try:
+        return date.fromisoformat(text) if text else None
+    except ValueError:
+        return None
 
 
 def _job_url(job: Job, tab: str = "items") -> str:
@@ -123,6 +134,15 @@ def job_detail(request, pk):
         "mockup_versions": list(job.mockups.all()),
         "approval_checks": mockups.checks(),
         "approved_mockup": mockups.approved(job),
+        "shipment_methods": Shipment.Method.choices,
+        "carriers": Shipment.Carrier.choices,
+        "default_address": fulfilment.default_address(job) if job.status == Status.READY else "",
+        "today": timezone.localdate(),
+        "shipments": list(job.shipments.all()),
+        "qa_checks": list(job.qa_checks.select_related("reviewed_by")),
+        "qa_tasks": list(job.tasks.select_related("decoration_method", "job_item"))
+        if job.status == Status.QA
+        else [],
     }
     sent = [v for v in context["mockup_versions"] if v.sent_at]
     context["sent_mockup_id"] = max(sent, key=lambda v: v.sent_at).pk if sent else None
@@ -202,6 +222,29 @@ def job_action(request, pk):
                     "ticked": request.POST.getlist("checks"),
                 },
             )
+        elif action == "qa_pass":
+            from apps.production import qa
+
+            qa.passed(job, user=user, notes=note)
+        elif action == "qa_fail":
+            from apps.production import qa
+
+            qa.failed(job, user=user, reason=note, task_ids=request.POST.getlist("rework"))
+        elif action == "shipment":
+            fulfilment.record_shipment(
+                job,
+                user=user,
+                data={
+                    "method": request.POST.get("method", ""),
+                    "carrier": request.POST.get("carrier", ""),
+                    "carrier_other": request.POST.get("carrier_other", ""),
+                    "tracking_number": request.POST.get("tracking_number", ""),
+                    "ship_date": _date(request.POST.get("ship_date", "")),
+                    "picked_up_by": request.POST.get("picked_up_by", ""),
+                    "address": request.POST.get("address", ""),
+                    "notes": note,
+                },
+            )
         elif action == "skip_mockup":
             services.skip_mockup(job, user=user, note=note)
         elif action == "reopen_mockup":
@@ -220,6 +263,8 @@ def job_action(request, pk):
             raise InvalidMove("Unknown action.")
     except (InvalidMove, PermissionDenied) as exc:
         messages.error(request, str(exc))
+    except ValidationError as exc:
+        messages.error(request, _errors(exc))
     else:
         job.refresh_from_db()
         messages.success(request, f"{job.display_number} is now {job.get_status_display()}.")
@@ -332,6 +377,9 @@ def task_assign(request, pk, task_pk):
     else:
         who = task.assigned_to.get_short_name() if task.assigned_to else "nobody"
         messages.success(request, f"{task.decoration_method} is now with {who}.")
+    back = request.POST.get("next", "")
+    if back and url_has_allowed_host_and_scheme(back, allowed_hosts={request.get_host()}):
+        return redirect(back)
     return redirect(_job_url(job))
 
 

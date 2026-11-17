@@ -40,6 +40,25 @@
     .pill.sooner, .pill.refunded { background: #fee2e2; color: #991b1b; }
     .pill.paid { background: #dcfce7; color: #166534; }
     .pill.online { background: #e0e7ff; color: #3730a3; }
+    .task-row { display: flex; gap: 12px; background: var(--card); border: 1px solid var(--line);
+                border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+    .task-row.rework { border-left: 4px solid var(--bad); }
+    .task-row .thumb img, .task-row .thumb .ext { width: 72px; height: 72px; object-fit: contain;
+                background: #fafafa; display: flex; align-items: center; justify-content: center;
+                color: var(--quiet); text-decoration: none; font-weight: 700; }
+    .task-row .body { flex: 1; } .task-row .side { text-align: right; min-width: 150px; }
+    .task-row .side form { margin-top: 4px; } .task-row .side button { padding: 2px 8px; }
+    .task-row .plan input { min-width: 0; width: 9em; }
+    table.calendar { table-layout: fixed; } table.calendar td { height: 96px; font-size: 12px; padding: 4px; }
+    table.calendar td.out { background: #fafaf8; color: var(--quiet); }
+    table.calendar td.today { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .daynum { font-weight: 600; margin-bottom: 2px; }
+    .cal-job, .cal-task { display: block; border-radius: 4px; padding: 1px 4px; margin-bottom: 2px;
+                          text-decoration: none; color: var(--ink); background: var(--accent-tint);
+                          overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .cal-job.overdue { background: #fee2e2; color: #991b1b; }
+    .cal-job.at_risk, .cal-job.at-risk { background: #fef3c7; color: #92400e; }
+    .cal-task { background: #f0f0ee; color: var(--quiet); }
     .materials { margin-top: 6px; font-size: 14px; }
     .materials.in { color: var(--good); } .materials.waiting, .materials.none { color: var(--warn); }
     .materials button { font-size: 12px; padding: 2px 8px; margin-left: 6px; }
@@ -189,6 +208,8 @@
       {% if user.is_authenticated %}
         {% if perms.jobs.view_money %}<a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}here{% endif %}">Home</a>{% endif %}
         {% if perms.jobs.view_job %}<a href="{% url 'jobs:list' %}" class="{% if request.resolver_match.app_name == 'jobs' %}here{% endif %}">Board</a>{% endif %}
+        {% if perms.production.view_station %}<a href="{% url 'production:floor' %}" class="{% if request.resolver_match.app_name == 'production' and request.resolver_match.url_name != 'calendar' %}here{% endif %}">Floor</a>{% endif %}
+        {% if perms.jobs.view_job %}<a href="{% url 'production:calendar' %}" class="{% if request.resolver_match.url_name == 'calendar' %}here{% endif %}">Calendar</a>{% endif %}
         {% if perms.purchasing.view_purchaseorder %}<a href="{% url 'purchasing:list' %}" class="{% if request.resolver_match.app_name == 'purchasing' %}here{% endif %}">Purchasing</a>{% endif %}
         {% if perms.sales.view_inquiry %}<a href="{% url 'sales:list' %}" class="{% if request.resolver_match.app_name == 'sales' %}here{% endif %}">Requests{% if new_requests %} <span class="pill customer" title="New requests waiting">{{ new_requests }}</span>{% endif %}</a>{% endif %}
         {% if perms.customers.view_customer %}<a href="{% url 'customers:list' %}" class="{% if request.resolver_match.app_name == 'customers' %}here{% endif %}">Customers</a>{% endif %}

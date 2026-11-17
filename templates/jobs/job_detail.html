@@ -20,7 +20,43 @@
     {% if job.status == "cancelled" and job.cancel_reason %}<span class="muted">· {{ job.cancel_reason }}</span>{% endif %}
   </p>
   <div class="actions">
-    {% if actions.forward and actions.forward.gate %}
+    {% if actions.qa_check %}
+      <details class="action" open><summary>QA Check</summary>
+        <form method="post" action="{% url 'jobs:action' job.pk %}">
+          {% csrf_token %}<input type="hidden" name="action" value="qa_pass"><input type="hidden" name="tab" value="{{ tab }}">
+          <label>Note <span class="muted">(optional)</span></label><input type="text" name="note">
+          <p><button type="submit" class="primary">Pass: move to Ready</button></p>
+        </form>
+        <form method="post" action="{% url 'jobs:action' job.pk %}" style="border-top:1px solid var(--line);padding-top:8px">
+          {% csrf_token %}<input type="hidden" name="action" value="qa_fail"><input type="hidden" name="tab" value="{{ tab }}">
+          <label>What failed</label><input type="text" name="note" required placeholder="E.g. Logo off-centre on 6 shirts">
+          {% if qa_tasks %}<fieldset class="approval-checks"><legend>Send back to the floor as rework</legend>
+            {% for t in qa_tasks %}<label><input type="checkbox" name="rework" value="{{ t.pk }}"> {{ t }}{% if t.job_item %} — {{ t.job_item.description }}{% endif %}</label>{% endfor %}
+          </fieldset>{% endif %}
+          <p><button type="submit" class="danger">Fail: back to In production</button></p>
+        </form>
+      </details>
+    {% endif %}
+    {% if actions.forward and actions.forward.shipment_form %}
+      <details class="action" open><summary>Picked Up Or Shipped</summary>
+        <form method="post" action="{% url 'jobs:action' job.pk %}">
+          {% csrf_token %}<input type="hidden" name="action" value="shipment"><input type="hidden" name="tab" value="{{ tab }}">
+          {% if actions.forward.gate %}<p class="warn" style="margin:6px 0">{{ actions.forward.gate }}</p>{% endif %}
+          <fieldset class="approval-checks"><legend>How it left</legend>
+            {% for value, label in shipment_methods %}<label><input type="radio" name="method" value="{{ value }}" required {% if value == "pickup" and job.fulfillment_method == "pickup" or value == "courier" and job.fulfillment_method == "ship" or value == "delivery" and job.fulfillment_method == "deliver" %}checked{% endif %}> {{ label }}</label>{% endfor %}
+          </fieldset>
+          <label>Date</label><input type="date" name="ship_date" value="{{ today|date:'Y-m-d' }}" required>
+          <label>Collected by <span class="muted">(pickup)</span></label><input type="text" name="picked_up_by" maxlength="200">
+          <label>Courier <span class="muted">(shipping)</span></label>
+          <select name="carrier"><option value="">—</option>{% for value, label in carriers %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+          <label>Other courier</label><input type="text" name="carrier_other" maxlength="100">
+          <label>Tracking number</label><input type="text" name="tracking_number" maxlength="100">
+          <label>Address <span class="muted">(shipping or delivery)</span></label><textarea name="address" rows="3">{{ default_address }}</textarea>
+          <label>Note <span class="muted">(optional)</span></label><input type="text" name="note">
+          <p><button type="submit" class="primary" {% if actions.forward.gate and not actions.forward.can_override %}disabled{% endif %}>Save and move to Shipped</button></p>
+        </form>
+      </details>
+    {% elif actions.forward and actions.forward.gate %}
       {% if actions.forward.can_override %}
         <details class="action"><summary>Move To {{ actions.forward.label }}</summary>
           <form method="post" action="{% url 'jobs:action' job.pk %}">
@@ -273,6 +309,15 @@
     </dl>
     {% if perms.jobs.change_job %}<p style="margin-bottom:0"><a class="button" href="{% url 'jobs:edit' job.pk %}">Edit details</a></p>{% endif %}
   </div>
+  {% if shipments or qa_checks %}
+    <div class="card">
+      <h2 style="margin-top:0">QA And Shipping</h2>
+      <ul style="margin:0;padding-left:18px">
+        {% for s in shipments %}<li>{{ s.summary }} · {{ s.ship_date|date:"D j M Y" }}{% if s.notes %} · {{ s.notes }}{% endif %}</li>{% endfor %}
+        {% for c in qa_checks %}<li>QA {{ c.get_result_display|lower }} · {{ c.reviewed_at|date:"D j M" }} · {{ c.reviewed_by.get_short_name|default:"—" }}{% if c.notes %} · {{ c.notes }}{% endif %}</li>{% endfor %}
+      </ul>
+    </div>
+  {% endif %}
   {% include "jobs/_files.html" %}
   {% if materials and materials.pos %}
     <div class="card">
