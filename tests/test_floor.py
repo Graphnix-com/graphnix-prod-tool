@@ -238,20 +238,33 @@ def test_production_cant_record_a_shipment(make_user, job_at):
 # --- Closing ---------------------------------------------------------------------------
 
 
-def test_shipped_jobs_close_after_14_days(job_at):
+def test_shipped_jobs_close_after_2_days(job_at):
     now = timezone.now()
-    old = job_at(Status.SHIPPED, status_changed_at=now - timedelta(days=15))
-    recent = job_at(Status.SHIPPED, status_changed_at=now - timedelta(days=3))
+    old = job_at(Status.SHIPPED, status_changed_at=now - timedelta(days=2, hours=1))
+    recent = job_at(Status.SHIPPED, status_changed_at=now - timedelta(days=1))
     assert fulfilment.close_shipped(now) == [old]
     old.refresh_from_db()
     recent.refresh_from_db()
     assert old.status == Status.CLOSED and old.closed_at is not None
-    assert old.history.get().note == "Closed 14 days after shipping"
+    assert old.history.get().note == "Closed 2 days after shipping"
     assert recent.status == Status.SHIPPED
 
 
-def test_the_close_delay_is_a_setting(job_at):
-    AppSetting.objects.create(key=fulfilment.CLOSE_SETTING, value=2)
+def test_closed_jobs_leave_the_board_but_search_finds_them(client, manager, job_at):
+    from apps.jobs import board
+
     job = job_at(Status.SHIPPED, status_changed_at=timezone.now() - timedelta(days=3))
+    fulfilment.close_shipped()
+    client.force_login(manager)
+    assert job.display_number not in client.get(reverse("jobs:list")).content.decode()
+    assert list(board.search(job.job_number, can_see_contacts=False)) == [job]
+
+
+def test_the_close_delay_is_a_setting(job_at):
+    AppSetting.objects.create(key=fulfilment.CLOSE_SETTING, value=5)
+    job = job_at(Status.SHIPPED, status_changed_at=timezone.now() - timedelta(days=3))
+    fulfilment.close_shipped()
+    assert Job.objects.get(pk=job.pk).status == Status.SHIPPED  # 5 days not up yet
+    Job.objects.filter(pk=job.pk).update(status_changed_at=timezone.now() - timedelta(days=6))
     fulfilment.close_shipped()
     assert Job.objects.get(pk=job.pk).status == Status.CLOSED

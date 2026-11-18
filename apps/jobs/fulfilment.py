@@ -1,7 +1,7 @@
 """Pickup or shipment (FR-27) and closing shipped jobs.
 
 Ready → Shipped / picked up only through this form (Avery and the Managers). A shipped job
-closes by itself `close_after_days` days later (14 unless the app setting says otherwise;
+closes by itself `close_after_days` days later (2 unless the app setting says otherwise;
 decided 17 Nov 2026).
 """
 
@@ -17,7 +17,7 @@ from . import flow, services
 from .models import Job, Shipment, Status
 
 CLOSE_SETTING = "close_after_days"
-CLOSE_DEFAULT = 14
+CLOSE_DEFAULT = 2
 
 
 def default_address(job: Job) -> str:
