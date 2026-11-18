@@ -184,6 +184,11 @@ addresses, and keeps only what it reads from them, never the email itself.
    (each email is handled once, so it's safe to repeat). The health panel shows the last
    read and any error.
 
+   To see first what a read would do, add `--dry-run`: each estimate email is listed
+   with what it would do (a new job, which existing job it moves, or that it would wait
+   to be linked), and nothing is saved. Use it at go-live before
+   `check_estimate_mail --days 14`.
+
 ## F. Real Square data on staging (optional, read only)
 
 To see real customers and invoices in staging without connecting staging to the real
