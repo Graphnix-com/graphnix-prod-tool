@@ -446,3 +446,40 @@ def test_older_estimate_jobs_are_renamed_for_their_customer(josh):
     old.refresh_from_db()
     kept.refresh_from_db()
     assert old.title == "Josh Wier" and kept.title == "Team caps"
+
+
+# --- Dry run -----------------------------------------------------------------------------
+
+
+def test_the_dry_run_shows_what_would_happen_and_saves_nothing(mailbox):
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    from apps.accounts.models import AppSetting
+
+    out = StringIO()
+    call_command("check_estimate_mail", "--days", "14", "--dry-run", stdout=out)
+    text = out.getvalue()
+    assert "#000685 sent" in text and "new job and a new customer at Quote Sent" in text
+    assert "#000685 accepted" in text and "its job moves to Invoiced" in text  # sees the sent one
+    assert "Dry run: nothing saved." in text
+    assert not Job.objects.exists() and not Customer.objects.exists()
+    assert not SquareEstimate.objects.exists() and not EstimateEmail.objects.exists()
+    assert not AppSetting.objects.filter(key=estimates.RESULT_KEY).exists()
+
+
+def test_the_dry_run_names_an_existing_quoting_job(mailbox, josh):
+    job = Job.objects.create(customer=josh, title="Team caps", status=Status.QUOTING)
+    mailbox["messages"] = [message()]
+    rows = estimates.preview()
+    assert rows[0]["result"] == (
+        f"existing job {job.job_number} Team caps (Josh Wier) now at Quote Sent"
+    )
+    job.refresh_from_db()
+    assert job.status == Status.QUOTING  # unchanged
+
+
+def test_the_dry_run_skips_emails_already_read(mailbox):
+    estimates.check_mail()
+    assert {r["result"] for r in estimates.preview()} == {"already read"}

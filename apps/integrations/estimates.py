@@ -393,6 +393,69 @@ def check_mail(*, since=None) -> dict:
     return result
 
 
+def preview(*, since=None) -> list[dict]:
+    """What check_mail would do, without keeping any of it: each estimate email goes through
+    the real matching inside a transaction that is rolled back at the end. Nothing is
+    saved, not even "last read". (Job numbers taken from the G- sequence stay used: a few
+    G- numbers are skipped, which is harmless.)"""
+    from apps.customers.models import Customer
+    from apps.m365 import graph
+
+    since = since or timezone.now() - OVERLAP
+    rows = []
+    with transaction.atomic():
+        for message in graph.list_messages(
+            settings.ESTIMATE_MAILBOX, senders=settings.ESTIMATE_SENDERS, since=since
+        ):
+            row = {"received": (message.get("receivedDateTime") or "")[:16].replace("T", " ")}
+            if EstimateEmail.objects.filter(message_id=message.get("id")).exists():
+                rows.append({**row, "number": "", "kind": "", "result": "already read"})
+                continue
+            customers = Customer.objects.count()
+            parsed = parse(
+                message.get("subject", ""), (message.get("body") or {}).get("content", "")
+            )
+            # On a job already: before this run, or from an earlier email in this preview.
+            known = (
+                bool(parsed)
+                and SquareEstimate.objects.filter(
+                    number=parsed["number"], job__isnull=False
+                ).exists()
+            )
+            try:
+                with transaction.atomic():
+                    email = handle(message)
+            except Exception as exc:  # shown, not raised: the preview goes on
+                rows.append({**row, "number": "", "kind": "", "result": f"error: {exc}"[:200]})
+                continue
+            estimate = email.estimate if email is not None else None
+            if estimate is None:
+                rows.append({**row, "number": "", "kind": "", "result": "not an estimate email"})
+                continue
+            estimate.refresh_from_db()
+            job = estimate.job
+            if job is None:
+                result = "waits under Invoices › Estimates"
+            else:
+                job.refresh_from_db()
+                status = job.get_status_display()
+                if known:
+                    result = f"its job moves to {status}"
+                elif estimate.match_method == SquareEstimate.Match.CREATED:
+                    new = " and a new customer" if Customer.objects.count() > customers else ""
+                    result = f"new job{new} at {status}"
+                else:
+                    # Named as staff know it now: its G- number (the estimate number
+                    # replaces it once this runs for real).
+                    result = (
+                        f"existing job {job.job_number} {job.title} "
+                        f"({job.customer.display_name}) now at {status}"
+                    )
+            rows.append({**row, "number": estimate.number, "kind": email.kind, "result": result})
+        transaction.set_rollback(True)
+    return rows
+
+
 def last_result() -> dict | None:
     from apps.accounts.models import get_setting
 
