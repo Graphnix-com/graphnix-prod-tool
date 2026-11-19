@@ -142,15 +142,13 @@
     details.emails summary { cursor: pointer; color: var(--accent); }
     details.emails ul { list-style: none; margin: 4px 0 0; padding: 0; }
     details.emails li { margin: 2px 0; }
-    details.see-all { margin-top: 2px; }
-    details.see-all > summary { cursor: pointer; list-style: none; display: block; text-align: center;
-               font-size: 13px; font-weight: 600; color: var(--accent); background: var(--accent-tint);
-               border: 1px dashed var(--accent); border-radius: 6px; padding: 6px 8px; margin: 4px 0 6px; }
-    details.see-all > summary::-webkit-details-marker { display: none; }
-    details.see-all > summary:hover { background: var(--card); }
-    details.see-all .when-open, details.see-all[open] .when-shut { display: none; }
-    details.see-all[open] .when-open { display: inline; }
-    details.see-all[open] > summary { margin-top: 6px; }
+    button.see-all { display: block; width: 100%; cursor: pointer; text-align: center;
+               font: inherit; font-size: 13px; font-weight: 600; color: var(--accent);
+               background: var(--accent-tint); border: 1px dashed var(--accent); border-radius: 6px;
+               padding: 6px 8px; margin: 4px 0 6px; }
+    button.see-all:hover { background: var(--card); }
+    button.see-all .when-open, button.see-all[aria-expanded="true"] .when-shut { display: none; }
+    button.see-all[aria-expanded="true"] .when-open { display: inline; }
     .jobcard .more { margin-top: 3px; padding-top: 3px; border-top: 1px solid var(--line); }
     .jobcard .more > div { margin: 1px 0; }
     .jobcard .open { font-weight: 600; }
@@ -249,6 +247,17 @@
     {% block content %}{% endblock %}
   </main>
   <footer>Version {{ GIT_SHA }}</footer>
+  <script>
+    // "See all N jobs": the rest of a long list opens above the button, so the button always
+    // sits at the bottom of the list. Delegated, so it keeps working after the board refreshes.
+    document.addEventListener("click", function (e) {
+      var button = e.target.closest("button.see-all");
+      if (!button) return;
+      var open = button.getAttribute("aria-expanded") !== "true";
+      button.setAttribute("aria-expanded", open ? "true" : "false");
+      button.previousElementSibling.hidden = !open;
+    });
+  </script>
   {% if shop_floor_session %}
   <script>
     // Shop-floor PC: back to the name list after {{ shop_floor_idle_seconds }} s without a

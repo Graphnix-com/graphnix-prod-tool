@@ -297,7 +297,8 @@ def test_a_busy_column_shows_three_then_see_all(client, manager, customer):
     client.force_login(manager)
     html = client.get(reverse("jobs:list")).content.decode()
     assert html.count("See all 5 jobs") == 1  # only the busy column
-    shown, rest = html.split("See all 5 jobs", 1)
+    shown, rest = html.split('class="see-all-rest" hidden', 1)
+    rest, after = rest.split("See all 5 jobs", 1)  # the button comes after the hidden rest
     assert sum(f"Busy column job {n}" in shown for n in range(5)) == 3
     assert sum(f"Busy column job {n}" in rest for n in range(5)) == 2
 
@@ -308,7 +309,7 @@ def test_home_lists_show_three_then_see_all(client, manager, customer):
     client.force_login(manager)
     html = client.get(reverse("home")).content.decode()
     assert "See all 4 jobs" in html
-    shown = html.split("See all 4 jobs", 1)[0]
+    shown = html.split('class="see-all-rest" hidden', 1)[0]
     assert sum(f"Waiting quote {n}" in shown for n in range(4)) == 3
 
 

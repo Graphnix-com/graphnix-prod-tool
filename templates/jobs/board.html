@@ -48,12 +48,12 @@
           document.querySelectorAll("#board details.jobcard[open]"),
           function (d) { return d.getAttribute("data-job"); });
         var expanded = Array.prototype.map.call(
-          document.querySelectorAll("#board details.see-all[open]"),
+          document.querySelectorAll('#board button.see-all[aria-expanded="true"]'),
           function (d) { return d.getAttribute("data-status"); });
         document.getElementById("board").innerHTML = html;
         expanded.forEach(function (status) {
-          document.querySelectorAll('#board details.see-all[data-status="' + status + '"]')
-            .forEach(function (d) { d.open = true; });
+          document.querySelectorAll('#board button.see-all[data-status="' + status + '"]')
+            .forEach(function (b) { b.click(); });
         });
         open.forEach(function (id) {
           document.querySelectorAll('#board details.jobcard[data-job="' + id + '"]')
