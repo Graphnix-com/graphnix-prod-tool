@@ -61,12 +61,36 @@ def square_webhook(request):
 @login_required
 @permission_required(linking.PERMISSION, raise_exception=True)
 def inbox(request):
-    invoices = linking.waiting().order_by("-square_updated_at", "-id")
+    invoices = list(linking.waiting().order_by("-square_updated_at", "-id"))
+    waiting_estimates = list(estimates.waiting())
+    open_jobs = linking.open_jobs()
+    for invoice in invoices:
+        invoice.suggested = linking.likely_jobs(
+            open_jobs, name=invoice.recipient_name, square_customer_id=invoice.square_customer_id
+        )
+    for estimate in waiting_estimates:
+        estimate.suggested = linking.likely_jobs(
+            open_jobs, name=estimate.customer_name, email=estimate.customer_email
+        )
     return render(
         request,
         "integrations/inbox.html",
-        {"invoices": invoices, "estimates": estimates.waiting()},
+        {"invoices": invoices, "estimates": waiting_estimates, "open_jobs": open_jobs},
     )
+
+
+def _picked_job(request):
+    """The job chosen from "Browse open jobs", else the one with the number typed in.
+    Returns (job, error message)."""
+    from apps.jobs.models import Job
+
+    picked = request.POST.get("job_id", "")
+    if picked:
+        job = Job.objects.filter(pk=picked, pk__in=[j.pk for j in linking.open_jobs()]).first()
+        return job, "" if job else "That job isn't open any more. Pick another."
+    number = request.POST.get("job_number", "")
+    job = board.exact_number(number)
+    return job, "" if job else f"No single job has the number “{number.strip()}”."
 
 
 def _back(request, invoice):
@@ -80,10 +104,9 @@ def _back(request, invoice):
 @require_POST
 def invoice_link(request, pk):
     invoice = get_object_or_404(SquareInvoice, pk=pk)
-    number = request.POST.get("job_number", "")
-    job = board.exact_number(number)
+    job, error = _picked_job(request)
     if job is None:
-        messages.error(request, f"No single job has the number “{number.strip()}”.")
+        messages.error(request, error)
         return _back(request, invoice)
     try:
         linking.link(invoice, job, user=request.user)
@@ -169,10 +192,9 @@ def invoice_set_aside(request, pk):
 @require_POST
 def estimate_link(request, pk):
     estimate = get_object_or_404(SquareEstimate, pk=pk)
-    number = request.POST.get("job_number", "")
-    job = board.exact_number(number)
+    job, error = _picked_job(request)
     if job is None:
-        messages.error(request, f"No single job has the number “{number.strip()}”.")
+        messages.error(request, error)
         return redirect("integrations:inbox")
     try:
         estimates.link(estimate, job, user=request.user)

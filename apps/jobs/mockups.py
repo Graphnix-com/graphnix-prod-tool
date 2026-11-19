@@ -3,7 +3,7 @@
 Proofs go out and come back by email. The tracker keeps the versions (v1, v2 ...), and a
 person moves the job:
 
-- to Mock-up sent, naming the version that went out;
+- to Mock-up Pending, naming the version that went out;
 - to Mock-up approved, naming the version approved and who approved it, with every box in
   the `mockup_approval_checks` setting ticked (Admin and Manager only).
 
@@ -30,6 +30,10 @@ APPROVE = "jobs.approve_mockup"
 OVERRIDE = "jobs.override_mockup_gate"
 # A mock-up is something a customer can look at in their email: an image or a PDF.
 FILE_TYPES = {"png", "jpg", "jpeg", "gif", "webp", "pdf"}
+
+# The value of the version picker that means "no mock-up attached": anyone who can make the
+# move may go ahead without one (an override, recorded on the job).
+NONE = "none"
 
 SETTING = "mockup_approval_checks"
 DEFAULT_CHECKS = [
@@ -104,13 +108,16 @@ def _version(job: Job, mockup_id) -> MockupVersion | None:
         return None
 
 
-def for_sent(job: Job, mockup_id) -> MockupVersion:
-    """The version named when a person moves the job to Mock-up sent."""
+def for_sent(job: Job, mockup_id) -> MockupVersion | None:
+    """The version named when a person moves the job to Mock-up Pending; None when they
+    chose to go ahead with no mock-up attached."""
+    if mockup_id == NONE:
+        return None
     mockup = _version(job, mockup_id)
     if mockup is None:
         if not job.mockups.exists():
             raise InvalidMove(
-                "Add the mock-up as a version first (Mock-ups tab), then mark it sent."
+                "Add the mock-up as a version first (Mock-ups tab), or choose No mock-up attached."
             )
         raise InvalidMove("Pick the mock-up version that went to the customer.")
     return mockup
@@ -120,8 +127,8 @@ def for_approval(job: Job, user, *, mockup_id, approved_by: str = "", ticked=())
     """What a person must give to move the job to Mock-up approved."""
     if not user.has_perm(APPROVE):
         raise PermissionDenied("Only Admin and Manager can mark a mock-up approved.")
-    mockup = _version(job, mockup_id)
-    if mockup is None:
+    mockup = None if mockup_id == NONE else _version(job, mockup_id)
+    if mockup is None and mockup_id != NONE:
         raise InvalidMove("Pick the mock-up version the customer approved.")
     approved_by = " ".join((approved_by or "").split())[:200]
     if not approved_by:
@@ -131,6 +138,15 @@ def for_approval(job: Job, user, *, mockup_id, approved_by: str = "", ticked=())
     if missing:
         raise InvalidMove("Tick every box before approving. Not ticked: " + "; ".join(missing))
     return {"mockup": mockup, "approved_by": approved_by, "checks": required}
+
+
+def approved_by_default(job: Job) -> str:
+    """What the Approved by box starts with: the job's contact, else the customer, with
+    their email when known. Staff change it if someone else approved."""
+    person = job.contact or job.customer
+    name = getattr(person, "full_name", "") or getattr(person, "display_name", "")
+    email = person.email or (job.customer.email if job.contact else "")
+    return f"{name} ({email})" if name and email else name or email
 
 
 def crosses_approval(from_status: str, to_status: str) -> bool:
@@ -155,7 +171,7 @@ def states(job: Job) -> list[dict]:
     latest_sent = max(sent, key=lambda v: v.sent_at) if sent else None
     if approval is not None and latest_sent and latest_sent.sent_at > approval.approved_at:
         approval = None  # a newer version went out: that one is waiting now
-    reference = approval.mockup if approval is not None else latest_sent
+    reference = approval.mockup if approval is not None and approval.mockup else latest_sent
     rows = []
     for v in versions:
         if approval is not None and v.pk == approval.mockup_id:
@@ -174,7 +190,7 @@ def states(job: Job) -> list[dict]:
 
 
 def _waiting(job: Job) -> bool:
-    """The job is at Mock-up sent (or on hold from there): the customer hasn't answered."""
+    """The job is at Mock-up Pending (or on hold from there): the customer hasn't answered."""
     if job.status == Status.ON_HOLD:
         return job.resume_status == Status.MOCKUP_SENT
     return job.status == Status.MOCKUP_SENT

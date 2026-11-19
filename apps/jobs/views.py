@@ -12,11 +12,22 @@ from django.views.decorators.http import require_POST
 from apps.production.models import DecorationMethod, ProductionTask
 from apps.sales.models import Inquiry
 
-from . import assignment, board, editing, files, fulfilment, mockups, money, services, timeline
+from . import (
+    assignment,
+    board,
+    editing,
+    files,
+    fulfilment,
+    mockups,
+    money,
+    services,
+    shopnotes,
+    timeline,
+)
 from .editing import Locked
 from .flags import Flagger
 from .forms import ItemForm, JobDetailsForm, NoteForm, TaskForm
-from .models import Job, JobFile, JobItem, PaymentStatus, Shipment, Status
+from .models import Job, JobFile, JobItem, PaymentStatus, Shipment, ShopNote, Status
 from .services import InvalidMove
 
 TABS = ["items", "mockups", "timeline", "details"]
@@ -92,9 +103,61 @@ def job_list(request):
         "assignees": get_user_model().objects.filter(is_active=True),
         "due_choices": board.DUE_FILTERS,
         "payment_choices": PaymentStatus.choices,
+        "shop_notes": list(shopnotes.open_notes()),
+        "note_jobs": Job.objects.select_related("customer")
+        .exclude(status__in=[Status.SHIPPED, Status.CLOSED, Status.CANCELLED])
+        .order_by("-created_at"),
     }
     template = "jobs/_board.html" if request.GET.get("partial") == "1" else "jobs/board.html"
     return render(request, template, context)
+
+
+# --- Shop notes (the board's shared to-dos) ----------------------------------------------
+
+
+def _to_board(request):
+    target = request.POST.get("next", "")
+    if url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}):
+        return redirect(target)
+    return redirect("jobs:list")
+
+
+@login_required
+@require_POST
+def shop_note_add(request):
+    try:
+        shopnotes.add(
+            user=request.user,
+            text=request.POST.get("text", ""),
+            job_number=request.POST.get("job_number", ""),
+        )
+    except PermissionDenied as exc:
+        messages.error(request, str(exc))
+    except ValidationError as exc:
+        messages.error(request, _errors(exc))
+    return _to_board(request)
+
+
+@login_required
+@require_POST
+def shop_note_tick(request, pk):
+    note = get_object_or_404(ShopNote, pk=pk)
+    try:
+        shopnotes.tick(note, user=request.user)
+    except PermissionDenied as exc:
+        messages.error(request, str(exc))
+    return _to_board(request)
+
+
+@login_required
+@require_POST
+def shop_note_remove(request, pk):
+    note = get_object_or_404(ShopNote, pk=pk)
+    try:
+        shopnotes.remove(note, user=request.user)
+    except PermissionDenied as exc:
+        messages.error(request, str(exc))
+    return _to_board(request)
 
 
 @login_required
@@ -130,9 +193,10 @@ def job_detail(request, pk):
         "assignable_ids": {p.pk for p in assignable},
         "assign_others": any(p.pk != request.user.pk for p in assignable),
         "can_assign": job.status not in assignment.CLOSED,
-        # For the Mock-up sent and Mock-up approved forms in the header.
+        # For the Mock-up Pending and Mock-up approved forms in the header.
         "mockup_versions": list(job.mockups.all()),
         "approval_checks": mockups.checks(),
+        "approved_by_default": mockups.approved_by_default(job),
         "approved_mockup": mockups.approved(job),
         "shipment_methods": Shipment.Method.choices,
         "carriers": Shipment.Carrier.choices,

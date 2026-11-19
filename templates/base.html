@@ -142,6 +142,10 @@
     details.emails summary { cursor: pointer; color: var(--accent); }
     details.emails ul { list-style: none; margin: 4px 0 0; padding: 0; }
     details.emails li { margin: 2px 0; }
+    details.browse-jobs { margin-top: 6px; font-size: 13px; }
+    details.browse-jobs summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+    details.browse-jobs form { display: grid; gap: 6px; margin-top: 6px; min-width: 340px; }
+    details.browse-jobs select { width: 100%; font: inherit; }
     button.see-all { display: block; width: 100%; cursor: pointer; text-align: center;
                font: inherit; font-size: 13px; font-weight: 600; color: var(--accent);
                background: var(--accent-tint); border: 1px dashed var(--accent); border-radius: 6px;
@@ -174,6 +178,27 @@
             max-height: calc(100vh - 20px); overflow-y: auto; }
     .mine h2 { margin: 0 0 8px; font-size: 13px; display: flex; justify-content: space-between;
                text-transform: uppercase; letter-spacing: .04em; }
+    .board-page { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 16px; align-items: start; }
+    .shop-notes { background: #fff8ec; border: 1px solid #f1d8b4; border-radius: 8px; padding: 8px;
+                  position: sticky; top: 10px; max-height: calc(100vh - 20px); overflow-y: auto; }
+    .shop-notes h2 { margin: 0 0 8px; font-size: 13px; display: flex; justify-content: space-between;
+                     text-transform: uppercase; letter-spacing: .04em; }
+    .note-add { display: grid; gap: 6px; margin-bottom: 8px; }
+    .note-add textarea { width: 100%; font: inherit; font-size: 13px; resize: vertical; }
+    .note-add-row { display: flex; gap: 6px; }
+    .note-add-row input { flex: 1; min-width: 0; font-size: 13px; }
+    .shop-note { background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+                 padding: 7px 9px; margin-bottom: 6px; font-size: 13px; line-height: 1.4; }
+    .shop-note .note-job { font-weight: 700; }
+    .shop-note .note-meta { color: var(--quiet); font-size: 11.5px; margin-top: 2px; }
+    .shop-note .note-actions { display: flex; gap: 6px; margin-top: 5px; }
+    .shop-note .note-actions button { font-size: 12px; padding: 2px 8px; }
+    .shop-note .link-danger { color: var(--bad); }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    @media (max-width: 1200px) {
+      .board-page { grid-template-columns: 1fr; }
+      .shop-notes { position: static; max-height: none; }
+    }
     @media (max-width: 900px) {
       .board-grid { grid-template-columns: 1fr; }
       .mine { position: static; max-height: none; }

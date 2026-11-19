@@ -80,7 +80,7 @@
           <input type="hidden" name="to_status" value="{{ actions.forward.to }}">
           <input type="hidden" name="tab" value="{{ tab }}">
           {% include "jobs/_mockup_fields.html" with to=actions.forward.to with_note=True %}
-          <p><button type="submit" class="primary" {% if not mockup_versions %}disabled{% endif %}>Move to {{ actions.forward.label }}</button></p>
+          <p><button type="submit" class="primary">Move to {{ actions.forward.label }}</button></p>
         </form>
       </details>
     {% elif actions.forward %}
@@ -229,7 +229,7 @@
 {% elif tab == "mockups" %}
   <div class="card">
     <h2 style="margin-top:0">Mock-ups</h2>
-    <p class="muted" style="margin-top:0">Proofs go to the customer by email. Add each version here, then move the job to Mock-up sent naming it. When the customer approves by email, move it to Mock-up approved.</p>
+    <p class="muted" style="margin-top:0">Proofs go to the customer by email. Add each version here, then move the job to Mock-up Pending naming it. When the customer approves by email, move it to Mock-up approved.</p>
     {% for r in mockup_rows %}
       <div class="mockup {{ r.state }}">
         <a href="{% url 'jobs:file_download' job.pk r.version.file.pk %}" class="thumb" {% if r.version.file.is_image %}target="_blank" rel="noopener"{% endif %}>

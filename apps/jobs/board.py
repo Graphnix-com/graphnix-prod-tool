@@ -299,14 +299,16 @@ def money_summary() -> dict:
 
 
 def search(query: str, *, can_see_contacts: bool, limit: int = 50):
-    """Jobs by Square or internal number, customer name or company, PO number or the
-    supplier's order number, and (for people who may see contacts) customer email."""
+    """Jobs by Square (invoice or estimate) or internal number, customer name or company, PO
+    number or the supplier's order number, and (for people who may see contacts) customer
+    email."""
     q = query.strip()
     if not q:
         return Job.objects.none()
     number = q.upper()
     terms = (
         Q(square_number__iexact=q)
+        | Q(square_estimate_ref__iexact=q)  # the estimate number, once the invoice's replaced it
         | Q(job_number__iexact=number)
         | Q(job_number__iexact=f"G-{number}")
         | Q(title__icontains=q)

@@ -56,14 +56,15 @@ HOLDABLE = set(PATH) - {Status.SHIPPED, Status.CLOSED}
 # Stages a job can be cancelled from ("any stage before Shipped").
 CANCELLABLE = HOLDABLE | {Status.ON_HOLD}
 
-SKIP_MOCKUP_FROM = {Status.INVOICED}
+# Mock-up Pending too: a paid invoice moves the job there by itself.
+SKIP_MOCKUP_FROM = {Status.INVOICED, Status.MOCKUP_SENT}
 SKIP_MOCKUP_TO = Status.MATERIALS_ORDERED
 REOPEN_MOCKUP_FROM = {
     Status.MOCKUP_APPROVED,
     Status.MATERIALS_ORDERED,
     Status.READY_FOR_PRODUCTION,
 }
-# Back to drawing: the stage before Mock-up Sent.
+# Back to drawing: the stage before Mock-up Pending.
 REOPEN_MOCKUP_TO = Status.INVOICED
 
 FORWARD = "forward"

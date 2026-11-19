@@ -1,0 +1,30 @@
+{% comment %}Shop notes: shared to-dos beside the board. Anyone adds; Managers and Admins tick off or remove.{% endcomment %}
+<aside class="shop-notes" aria-label="Shop notes">
+  <h2><span>Shop Notes</span><span class="muted">{{ shop_notes|length }}</span></h2>
+  {% if perms.jobs.add_shopnote %}
+    <form method="post" action="{% url 'jobs:shop_note_add' %}" class="note-add">
+      {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+      <label for="shop-note-text" class="sr-only">New note</label>
+      <textarea name="text" id="shop-note-text" rows="2" maxlength="300" required placeholder="Add a to-do for the shop"></textarea>
+      <div class="note-add-row">
+        <input type="text" name="job_number" list="shop-note-jobs" placeholder="Job No. (optional)" aria-label="Job number (optional)">
+        <button type="submit">Add</button>
+      </div>
+      <datalist id="shop-note-jobs">{% for j in note_jobs %}<option value="{{ j.display_number }}">{{ j.customer.display_name }}</option>{% endfor %}</datalist>
+    </form>
+  {% endif %}
+  {% for n in shop_notes %}
+    <div class="shop-note">
+      <div class="note-text">{% if n.job %}<a href="{% url 'jobs:detail' n.job.pk %}" class="note-job">{{ n.job.display_number }}</a> {% endif %}{{ n.text }}</div>
+      <div class="note-meta">{{ n.created_by|default:"Someone" }} · {{ n.created_at|date:"D j M, g:i a" }}{% if not n.job %} · General{% endif %}</div>
+      {% if perms.jobs.change_shopnote or perms.jobs.delete_shopnote %}
+        <div class="note-actions">
+          {% if perms.jobs.change_shopnote %}<form method="post" action="{% url 'jobs:shop_note_tick' n.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button type="submit" title="Done: take it off the list">✓ Done</button></form>{% endif %}
+          {% if perms.jobs.delete_shopnote %}<form method="post" action="{% url 'jobs:shop_note_remove' n.pk %}" class="inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button type="submit" class="link-danger" title="Remove it">Remove</button></form>{% endif %}
+        </div>
+      {% endif %}
+    </div>
+  {% empty %}
+    <p class="muted" style="margin:4px 0">No notes. Add the first one above.</p>
+  {% endfor %}
+</aside>

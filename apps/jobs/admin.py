@@ -5,7 +5,7 @@ from django.contrib import admin
 
 from apps.audit.admin import AuditedAdmin
 
-from .models import Job, JobNote, JobStatusHistory
+from .models import Job, JobNote, JobStatusHistory, ShopNote
 
 
 class HistoryInline(admin.TabularInline):
@@ -55,3 +55,13 @@ class JobAdmin(AuditedAdmin):
             if formset.model is JobNote and f.instance.pk is None and f.has_changed():
                 f.instance.author = request.user
         super().save_formset(request, form, formset, change)
+
+
+@admin.register(ShopNote)
+class ShopNoteAdmin(AuditedAdmin):
+    """Every shop note, including the ones ticked off the board."""
+
+    list_display = ("text", "job", "created_by", "created_at", "done_by", "done_at")
+    list_filter = ("done_at",)
+    search_fields = ("text",)
+    readonly_fields = ("created_by", "created_at", "done_by", "done_at")
