@@ -11,7 +11,13 @@
         {% for status, label, cards in columns %}
           <div class="column" data-status="{{ status }}">
             <h3><span>{{ label }}</span><span class="muted">{{ cards|length }}</span></h3>
-            {% for c in cards %}{% include "jobs/_card.html" %}{% endfor %}
+            {% for c in cards|slice:":3" %}{% include "jobs/_card.html" %}{% endfor %}
+            {% if cards|length > 3 %}
+              <details class="see-all" data-status="{{ status }}">
+                <summary><span class="when-shut">See all {{ cards|length }} jobs ▾</span><span class="when-open">Show first 3 only ▴</span></summary>
+                {% for c in cards|slice:"3:" %}{% include "jobs/_card.html" %}{% endfor %}
+              </details>
+            {% endif %}
           </div>
         {% endfor %}
       </div>

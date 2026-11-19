@@ -1,0 +1,8 @@
+{% comment %}A Home list, capped at three rows; the rest open under "See all".{% endcomment %}
+{% for c in rows|slice:":3" %}{% include "jobs/_home_row.html" %}{% empty %}<p class="muted" style="margin:0">Nothing.</p>{% endfor %}
+{% if rows|length > 3 %}
+  <details class="see-all">
+    <summary><span class="when-shut">See all {{ rows|length }} jobs ▾</span><span class="when-open">Show first 3 only ▴</span></summary>
+    {% for c in rows|slice:"3:" %}{% include "jobs/_home_row.html" %}{% endfor %}
+  </details>
+{% endif %}
