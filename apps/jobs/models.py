@@ -20,10 +20,10 @@ class Status(models.TextChoices):
     # can reach it; kept so older history still reads "Quote Approved".
     QUOTE_APPROVED = "quote_approved", "Quote Approved"
     INVOICED = "invoiced", "Invoiced"
-    # Retired: Invoiced goes straight to Mock-up Sent. No job can reach it; kept so older
+    # Retired: Invoiced goes straight to Mock-up Pending. No job can reach it; kept so older
     # history still reads "Mock-up In Progress".
     MOCKUP_IN_PROGRESS = "mockup_in_progress", "Mock-up In Progress"
-    MOCKUP_SENT = "mockup_sent", "Mock-up Sent"
+    MOCKUP_SENT = "mockup_sent", "Mock-up Pending"
     MOCKUP_APPROVED = "mockup_approved", "Mock-up Approved"
     MATERIALS_ORDERED = "materials_ordered", "Materials Ordered"
     READY_FOR_PRODUCTION = "ready_for_production", "Ready For Production"
@@ -375,7 +375,7 @@ class MockupVersion(models.Model):
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
     created_at = models.DateTimeField(default=timezone.now)
-    # When a person moved the job to Mock-up sent naming this version.
+    # When a person moved the job to Mock-up Pending naming this version.
     sent_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -398,7 +398,14 @@ class MockupApproval(models.Model):
     who approved, and the checks ticked before the job moved to Mock-up approved."""
 
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="mockup_approvals")
-    mockup = models.ForeignKey(MockupVersion, on_delete=models.PROTECT, related_name="approvals")
+    # Empty when the job was approved with no mock-up attached (an override anyone may use).
+    mockup = models.ForeignKey(
+        MockupVersion,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="approvals",
+    )
     approved_by_name = models.CharField("approved by", max_length=200)
     checks = models.JSONField(default=list)
     saved_by = models.ForeignKey(
@@ -411,7 +418,7 @@ class MockupApproval(models.Model):
         ordering = ["-approved_at", "-id"]
 
     def __str__(self) -> str:
-        return f"{self.mockup} approved by {self.approved_by_name}"
+        return f"{self.mockup or 'Mock-up'} approved by {self.approved_by_name}"
 
 
 class Shipment(models.Model):
@@ -464,3 +471,28 @@ class Shipment(models.Model):
             tracking = f", tracking {self.tracking_number}" if self.tracking_number else ""
             return f"Shipped by {self.carrier_name}{tracking}"
         return "Delivered by Graphnix"
+
+
+class ShopNote(models.Model):
+    """A shared to-do on the board's Shop notes list: about one job, or general. Anyone can
+    add one; Managers and Admins tick it off (done) or remove it."""
+
+    text = models.CharField(max_length=300)
+    job = models.ForeignKey(
+        Job, null=True, blank=True, on_delete=models.SET_NULL, related_name="shop_notes"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    done_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    done_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "shop_note"
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        return self.text

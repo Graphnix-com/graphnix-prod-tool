@@ -440,10 +440,20 @@ def refresh_job(
 
     sent = [i for i in invoices if i.sent and i.status not in CANCELLED_STATES]
     if sent:
-        number = (invoice if invoice in sent else sent[0]).invoice_number
-        job_services.square_invoiced(
+        current = invoice if invoice in sent else sent[0]
+        number = current.invoice_number
+        # The invoice's number becomes the job's number (the first invoice; a second one
+        # doesn't renumber the job).
+        job_services.use_invoice_number(
+            job, number, keep={i.invoice_number for i in sent if i.invoice_number}
+        )
+        job = job_services.square_invoiced(
             job, note=f"Square invoice {number} sent".replace("  ", " "), event_id=event_id
         )
+        if status == PaymentStatus.PAID:
+            job_services.square_paid(
+                job, note=f"Square invoice {number} paid".replace("  ", " "), event_id=event_id
+            )
     return job
 
 

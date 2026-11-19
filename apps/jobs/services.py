@@ -58,14 +58,9 @@ def _on_enter(job: Job, status: str, now) -> None:
     elif status == Status.INVOICED and job.quote_approved_at is None:
         job.quote_approved_at = now  # the quote is approved once it's invoiced
     elif status == Status.MOCKUP_APPROVED:
-        # The 14-business-day queue starts at each approval; a reopened mock-up gets a new
-        # suggestion. The due date itself is only filled in if nobody has set one.
         job.mockup_approved_at = now
-        job.suggested_due_date = workdays.calendar().add_business_days(
-            timezone.localdate(now), workdays.turnaround_days()
-        )
-        if job.due_date is None:
-            job.due_date = job.suggested_due_date
+        if job.due_date is None:  # a new store order; moves set it in _change_status
+            _set_due_date(job, now)
     elif status == Status.READY_FOR_PRODUCTION:
         # Released: its planned tasks join their station queues.
         from apps.production.models import TaskStatus
@@ -73,6 +68,23 @@ def _on_enter(job: Job, status: str, now) -> None:
         job.tasks.filter(status=TaskStatus.BLOCKED).update(status=TaskStatus.QUEUED)
     elif status == Status.CLOSED:
         job.closed_at = now
+
+
+def _set_due_date(job: Job, now) -> None:
+    """The turnaround (14 business days by default) from today."""
+    job.suggested_due_date = workdays.calendar().add_business_days(
+        timezone.localdate(now), workdays.turnaround_days()
+    )
+    job.due_date = job.suggested_due_date
+
+
+def reaches_production_queue(from_status: str, to_status: str) -> bool:
+    """A move from before Mock-up Approved to Mock-up Approved or any later stage: the
+    turnaround starts, and the due date is set from it."""
+    if from_status not in flow.PATH or to_status not in flow.PATH:
+        return False
+    gate = flow.PATH.index(Status.MOCKUP_APPROVED)
+    return flow.PATH.index(from_status) < gate <= flow.PATH.index(to_status)
 
 
 def _change_status(
@@ -83,6 +95,14 @@ def _change_status(
     job.status = to_status
     job.status_changed_at = now
     _on_enter(job, to_status, now)
+    if reaches_production_queue(old, to_status) and to_status != Status.CLOSED:
+        before = job.due_date
+        _set_due_date(job, now)
+        if before != job.due_date:
+            extra = {**(extra or {}), "due_date": [str(before or ""), str(job.due_date)]}
+            day = f"{job.due_date:%a} {job.due_date.day} {job.due_date:%b}"
+            due = f"Due date set to {day} ({workdays.turnaround_days()} business days)"
+            note = "; ".join(p for p in (note, due) if p)
     job.save()
     JobStatusHistory.objects.create(
         job=job,
@@ -189,7 +209,7 @@ def move(
 ) -> Job:
     """Move a job along the path: one stage forward, or (with a reason) anywhere else.
 
-    A person moving a job to Mock-up sent names the version (`mockup`); to Mock-up approved,
+    A person moving a job to Mock-up Pending names the version (`mockup`); to Mock-up approved,
     the version, who approved and the ticks (`approval`). Passing Mock-up approved without
     stopping there needs Skip mock-up or an Admin's override (the mock-up gate, FR-12)."""
     job = _locked(job)
@@ -208,20 +228,18 @@ def move(
             raise InvalidMove("Record the pickup or shipment to move this job to Shipped.")
         if to_status == Status.MOCKUP_SENT:
             sent = mockups.for_sent(job, mockup)
-            note = "; ".join(p for p in (f"Mock-up {sent} sent", note) if p)
-            extra["mockup"] = [None, str(sent)]
+            said = f"Mock-up {sent} sent" if sent else "No mock-up attached"
+            note = "; ".join(p for p in (said, note) if p)
+            extra["mockup"] = [None, str(sent) if sent else "none attached"]
         elif to_status == Status.MOCKUP_APPROVED:
             approved = mockups.for_approval(job, user, mockup_id=mockup, **(approval or {}))
+            version = f"Mock-up {approved['mockup']}" if approved["mockup"] else "Mock-up"
+            attached = "" if approved["mockup"] else " (no mock-up attached)"
             note = "; ".join(
-                p
-                for p in (
-                    f"Mock-up {approved['mockup']} approved by {approved['approved_by']}",
-                    note,
-                )
-                if p
+                p for p in (f"{version} approved by {approved['approved_by']}{attached}", note) if p
             )
             extra.update(
-                mockup=[None, str(approved["mockup"])],
+                mockup=[None, str(approved["mockup"]) if approved["mockup"] else "none attached"],
                 approved_by=[None, approved["approved_by"]],
                 checks=[None, "; ".join(approved["checks"])],
             )
@@ -300,6 +318,40 @@ def square_invoiced(job: Job, *, note: str, event_id: str = "") -> Job:
         "status_change",
         {"square_event": [None, event_id]} if event_id else None,
     )
+
+
+@transaction.atomic
+def square_paid(job: Job, *, note: str, event_id: str = "") -> Job:
+    """The job's Square invoice is paid in full: a job at Invoiced moves to Mock-up Pending,
+    so the mock-up goes out. A job anywhere else stays where it is."""
+    job = _locked(job)
+    if job.status != Status.INVOICED:
+        return job
+    return _change_status(
+        job,
+        Status.MOCKUP_SENT,
+        None,
+        note,
+        JobStatusHistory.Source.SQUARE,
+        "status_change",
+        {"square_event": [None, event_id]} if event_id else None,
+    )
+
+
+def use_invoice_number(job: Job, number: str, *, keep: set[str], user=None) -> bool:
+    """The invoice's number becomes the job's number, replacing the estimate or G- number.
+    Left alone when the job already carries one of its invoices' numbers (`keep`), so a
+    second invoice doesn't renumber it, or when another job has that number."""
+    number = (number or "").strip()
+    if not number or job.square_number == number or job.square_number in keep:
+        return False
+    if Job.objects.filter(square_number=number).exclude(pk=job.pk).exists():
+        return False
+    before = job.square_number
+    Job.objects.filter(pk=job.pk).update(square_number=number, updated_at=timezone.now())
+    job.square_number = number
+    record(user, job, "update", {"square_number": [before or job.job_number, number]})
+    return True
 
 
 def _system_job(
@@ -404,9 +456,9 @@ def square_estimate_accepted(job: Job, *, note: str) -> Job:
 
 
 def skip_mockup(job: Job, *, user, note: str) -> Job:
-    """Invoiced → Materials ordered, e.g. online store orders."""
+    """Invoiced or Mock-up Pending → Materials ordered, e.g. a reprint with no new design."""
     if job.status not in flow.SKIP_MOCKUP_FROM:
-        raise InvalidMove("The mock-up can only be skipped from Invoiced.")
+        raise InvalidMove("The mock-up can only be skipped from Invoiced or Mock-up Pending.")
     return move(job, flow.SKIP_MOCKUP_TO, user=user, note=note, skipping_mockup=True)
 
 
@@ -513,7 +565,7 @@ def actions_for(job: Job, user) -> dict:
         forward = None  # the QA check (Managers) passes or fails it
     jump_targets = []
     if override and status in flow.PATH and status != Status.CLOSED:
-        # Mock-up sent and approved are reached through their forms, never by a jump.
+        # Mock-up Pending and approved are reached through their forms, never by a jump.
         jump_targets = [
             {"to": s, "label": Status(s).label}
             for s in flow.PATH

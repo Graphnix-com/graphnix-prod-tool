@@ -25,6 +25,36 @@ def waiting():
     )
 
 
+def open_jobs() -> list:
+    """Jobs an invoice or estimate can go on, for "Browse open jobs": not shipped, closed or
+    cancelled. By customer, then newest first."""
+    from apps.jobs.models import Job, Status
+
+    return list(
+        Job.objects.exclude(status__in=[Status.SHIPPED, Status.CLOSED, Status.CANCELLED])
+        .select_related("customer", "contact")
+        .order_by("customer__display_name", "-created_at")
+    )
+
+
+def likely_jobs(jobs, *, name: str = "", email: str = "", square_customer_id: str = "") -> list:
+    """The open jobs that look like this customer's, listed first when browsing."""
+    name = " ".join((name or "").split()).lower()
+    email = (email or "").strip().lower()
+
+    def matches(job) -> bool:
+        customer = job.customer
+        if square_customer_id and customer.square_customer_id == square_customer_id:
+            return True
+        names = {customer.display_name.lower(), customer.company_name.lower()}
+        if job.contact:
+            names.add(job.contact.full_name.lower())
+        emails = {customer.email.lower(), (job.contact.email if job.contact else "").lower()}
+        return bool((name and name in names) or (email and email in emails))
+
+    return [j for j in jobs if matches(j)]
+
+
 def _require(user):
     if not user.has_perm(PERMISSION):
         raise PermissionDenied("You can't link Square invoices.")
@@ -70,8 +100,23 @@ def unlink(invoice: SquareInvoice, *, user) -> SquareInvoice:
     invoice.linked_at = None
     invoice.save()
     record(user, invoice, "unlink", {"invoice": [invoice.invoice_number, None]}, job=previous)
+    _give_back_number(previous, invoice, user=user)
     square.refresh_job(previous, invoice=invoice)
     return invoice
+
+
+def _give_back_number(job, invoice: SquareInvoice, *, user) -> None:
+    """A job numbered after an invoice that is unlinked goes back to its estimate number,
+    else its G- number."""
+    from apps.jobs.models import Job
+
+    if not invoice.invoice_number or job.square_number != invoice.invoice_number:
+        return
+    number = job.square_estimate_ref
+    if number and Job.objects.filter(square_number=number).exclude(pk=job.pk).exists():
+        number = ""
+    Job.objects.filter(pk=job.pk).update(square_number=number)
+    record(user, job, "update", {"square_number": [invoice.invoice_number, number or None]})
 
 
 @transaction.atomic

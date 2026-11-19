@@ -1,0 +1,19 @@
+{% comment %}"Browse open jobs": pick the job from a list instead of typing its number. Jobs that look like this customer's come first.{% endcomment %}
+<details class="browse-jobs">
+  <summary>Browse open jobs</summary>
+  <form method="post" action="{{ action }}">
+    {% csrf_token %}
+    <input type="search" class="job-filter" placeholder="Filter: number, customer or title" aria-label="Filter open jobs">
+    <select name="job_id" size="8" required aria-label="Open jobs">
+      {% if suggested %}
+        <optgroup label="Same customer">
+          {% for j in suggested %}<option value="{{ j.pk }}">{{ j.display_number }} · {{ j.customer.display_name }} · {{ j.title|truncatechars:40 }} ({{ j.get_status_display }})</option>{% endfor %}
+        </optgroup>
+      {% endif %}
+      <optgroup label="All open jobs">
+        {% for j in open_jobs %}<option value="{{ j.pk }}">{{ j.display_number }} · {{ j.customer.display_name }} · {{ j.title|truncatechars:40 }} ({{ j.get_status_display }})</option>{% empty %}<option disabled>No open jobs</option>{% endfor %}
+      </optgroup>
+    </select>
+    <button type="submit">Link to the picked job</button>
+  </form>
+</details>

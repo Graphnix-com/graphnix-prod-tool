@@ -46,8 +46,10 @@ def test_uses_the_customer_linked_in_square(client, manager, unlinked):
     job = Job.objects.get()
     assert response["Location"] == reverse("jobs:detail", args=[job.pk])
     assert job.customer == pat and job.title == "Team hoodies, 40"
-    assert job.status == Status.INVOICED and job.payment_status == PaymentStatus.PAID
+    # Already paid: straight on to Mock-up Pending, numbered after the invoice.
+    assert job.status == Status.MOCKUP_SENT and job.payment_status == PaymentStatus.PAID
     unlinked.refresh_from_db()
+    assert job.display_number == unlinked.invoice_number
     assert unlinked.job == job and unlinked.match_method == SquareInvoice.Match.MANUAL
     assert AuditLog.objects.filter(entity_type="jobs.job", action="create", actor=manager).exists()
 

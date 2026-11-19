@@ -20,6 +20,7 @@
           <input type="text" name="job_number" placeholder="Job No." aria-label="Job number for invoice {{ inv.invoice_number }}" required style="width:110px">
           <button type="submit">Link</button>
         </form>
+        {% url 'integrations:invoice_link' inv.pk as link_url %}{% include "integrations/_browse_jobs.html" with action=link_url suggested=inv.suggested %}
       </td>
       <td style="white-space:nowrap">
         {% if perms.jobs.add_job %}<a class="button" href="{% url 'integrations:invoice_new_job' inv.pk %}">Create job</a>{% endif %}
@@ -49,6 +50,7 @@
           <input type="text" name="job_number" placeholder="Job No." aria-label="Job number for estimate {{ est.number }}" required style="width:110px">
           <button type="submit">Link</button>
         </form>
+        {% url 'integrations:estimate_link' est.pk as link_url %}{% include "integrations/_browse_jobs.html" with action=link_url suggested=est.suggested %}
       </td>
       <td style="white-space:nowrap">
         {% if perms.jobs.add_job %}<a class="button" href="{% url 'integrations:estimate_new_job' est.pk %}">Create job</a>{% endif %}
@@ -61,4 +63,20 @@
     <tr><td colspan="7" class="muted">Nothing to link.</td></tr>
   {% endfor %}
 </table>
+<script>
+  // "Browse open jobs": the filter box narrows the list as you type.
+  document.querySelectorAll(".browse-jobs .job-filter").forEach(function (box) {
+    var select = box.parentNode.querySelector("select");
+    box.addEventListener("input", function () {
+      var words = box.value.toLowerCase().split(/\s+/).filter(Boolean);
+      select.querySelectorAll("option").forEach(function (o) {
+        var text = o.textContent.toLowerCase();
+        o.hidden = !words.every(function (w) { return text.indexOf(w) !== -1; });
+      });
+      select.querySelectorAll("optgroup").forEach(function (g) {
+        g.hidden = !g.querySelector("option:not([hidden])");
+      });
+    });
+  });
+</script>
 {% endblock %}

@@ -162,12 +162,22 @@ def test_mockup_approval_suggests_due_date_14_business_days_mon_to_thu(
     assert job.mockup_approved_at is not None
 
 
-def test_mockup_approval_keeps_a_due_date_already_set(manager, job_at, monkeypatch):
+def test_mockup_approval_replaces_a_due_date_already_set(manager, job_at, monkeypatch):
     _at(monkeypatch, datetime(2026, 11, 12, 10, 0, tzinfo=EDMONTON))
     job = job_at(Status.MOCKUP_SENT, due_date=date(2026, 11, 30))
     job = services.move(job, Status.MOCKUP_APPROVED, user=manager, **approval_for(job))
-    assert job.due_date == date(2026, 11, 30)
-    assert job.suggested_due_date == date(2026, 12, 8)
+    assert job.due_date == job.suggested_due_date == date(2026, 12, 8)
+    assert "Due date set to Tue 8 Dec (14 business days)" in job.history.get().note
+
+
+def test_any_move_into_production_stages_sets_the_due_date(manager, job_at, monkeypatch):
+    _at(monkeypatch, datetime(2026, 11, 12, 10, 0, tzinfo=EDMONTON))
+    skipped = services.skip_mockup(job_at(Status.INVOICED), user=manager, note="Reprint")
+    assert skipped.due_date == date(2026, 12, 8)
+    # Moves within the production stages leave it alone.
+    later = job_at(Status.MATERIALS_ORDERED, due_date=date(2026, 11, 30))
+    later = services.move(later, Status.READY_FOR_PRODUCTION, user=manager)
+    assert later.due_date == date(2026, 11, 30)
 
 
 def test_holidays_and_turnaround_come_from_settings(manager, job_at, monkeypatch):

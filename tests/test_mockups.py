@@ -66,7 +66,7 @@ def test_a_mockups_file_cant_be_removed(manager, job_at):
     assert JobFile.objects.filter(pk=version.file_id).exists()
 
 
-# --- Mock-up sent ----------------------------------------------------------------------
+# --- Mock-up Pending ----------------------------------------------------------------------
 
 
 def test_mockup_sent_names_the_version(manager, job_at):
