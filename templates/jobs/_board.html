@@ -13,10 +13,8 @@
             <h3><span>{{ label }}</span><span class="muted">{{ cards|length }}</span></h3>
             {% for c in cards|slice:":3" %}{% include "jobs/_card.html" %}{% endfor %}
             {% if cards|length > 3 %}
-              <details class="see-all" data-status="{{ status }}">
-                <summary><span class="when-shut">See all {{ cards|length }} jobs ▾</span><span class="when-open">Show first 3 only ▴</span></summary>
-                {% for c in cards|slice:"3:" %}{% include "jobs/_card.html" %}{% endfor %}
-              </details>
+              <div class="see-all-rest" hidden>{% for c in cards|slice:"3:" %}{% include "jobs/_card.html" %}{% endfor %}</div>
+              <button type="button" class="see-all" aria-expanded="false" data-status="{{ status }}"><span class="when-shut">See all {{ cards|length }} jobs ▾</span><span class="when-open">Show first 3 only ▴</span></button>
             {% endif %}
           </div>
         {% endfor %}
