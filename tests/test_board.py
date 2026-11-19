@@ -288,3 +288,31 @@ def test_assigned_to_me_is_in_the_refresh_and_empty_says_so(client, manager, cus
     client.force_login(manager)
     fragment = client.get(reverse("jobs:list") + "?partial=1").content.decode()
     assert "Assigned to me" in fragment and "Nothing assigned." in fragment
+
+
+def test_a_busy_column_shows_three_then_see_all(client, manager, customer):
+    for n in range(5):
+        make(customer, Status.QUOTING, f"Busy column job {n}")
+    make(customer, Status.QUOTE_SENT, "Quiet column job")
+    client.force_login(manager)
+    html = client.get(reverse("jobs:list")).content.decode()
+    assert html.count("See all 5 jobs") == 1  # only the busy column
+    shown, rest = html.split("See all 5 jobs", 1)
+    assert sum(f"Busy column job {n}" in shown for n in range(5)) == 3
+    assert sum(f"Busy column job {n}" in rest for n in range(5)) == 2
+
+
+def test_home_lists_show_three_then_see_all(client, manager, customer):
+    for n in range(4):
+        make(customer, Status.QUOTING, f"Waiting quote {n}")
+    client.force_login(manager)
+    html = client.get(reverse("home")).content.decode()
+    assert "See all 4 jobs" in html
+    shown = html.split("See all 4 jobs", 1)[0]
+    assert sum(f"Waiting quote {n}" in shown for n in range(4)) == 3
+
+
+def test_purchasing_is_not_in_the_header(client, manager):
+    client.force_login(manager)
+    nav = client.get(reverse("jobs:list")).content.decode().split("</nav>", 1)[0]
+    assert "Purchasing" not in nav and "Board" in nav

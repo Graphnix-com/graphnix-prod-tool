@@ -142,6 +142,15 @@
     details.emails summary { cursor: pointer; color: var(--accent); }
     details.emails ul { list-style: none; margin: 4px 0 0; padding: 0; }
     details.emails li { margin: 2px 0; }
+    details.see-all { margin-top: 2px; }
+    details.see-all > summary { cursor: pointer; list-style: none; display: block; text-align: center;
+               font-size: 13px; font-weight: 600; color: var(--accent); background: var(--accent-tint);
+               border: 1px dashed var(--accent); border-radius: 6px; padding: 6px 8px; margin: 4px 0 6px; }
+    details.see-all > summary::-webkit-details-marker { display: none; }
+    details.see-all > summary:hover { background: var(--card); }
+    details.see-all .when-open, details.see-all[open] .when-shut { display: none; }
+    details.see-all[open] .when-open { display: inline; }
+    details.see-all[open] > summary { margin-top: 6px; }
     .jobcard .more { margin-top: 3px; padding-top: 3px; border-top: 1px solid var(--line); }
     .jobcard .more > div { margin: 1px 0; }
     .jobcard .open { font-weight: 600; }
@@ -210,7 +219,6 @@
         {% if perms.jobs.view_job %}<a href="{% url 'jobs:list' %}" class="{% if request.resolver_match.app_name == 'jobs' %}here{% endif %}">Board</a>{% endif %}
         {% if perms.production.view_station %}<a href="{% url 'production:floor' %}" class="{% if request.resolver_match.app_name == 'production' and request.resolver_match.url_name != 'calendar' %}here{% endif %}">Floor</a>{% endif %}
         {% if perms.jobs.view_job %}<a href="{% url 'production:calendar' %}" class="{% if request.resolver_match.url_name == 'calendar' %}here{% endif %}">Calendar</a>{% endif %}
-        {% if perms.purchasing.view_purchaseorder %}<a href="{% url 'purchasing:list' %}" class="{% if request.resolver_match.app_name == 'purchasing' %}here{% endif %}">Purchasing</a>{% endif %}
         {% if perms.sales.view_inquiry %}<a href="{% url 'sales:list' %}" class="{% if request.resolver_match.app_name == 'sales' %}here{% endif %}">Requests{% if new_requests %} <span class="pill customer" title="New requests waiting">{{ new_requests }}</span>{% endif %}</a>{% endif %}
         {% if perms.customers.view_customer %}<a href="{% url 'customers:list' %}" class="{% if request.resolver_match.app_name == 'customers' %}here{% endif %}">Customers</a>{% endif %}
         {% if perms.integrations.link_square_invoice %}<a href="{% url 'integrations:inbox' %}" class="{% if request.resolver_match.url_name == 'inbox' %}here{% endif %}">Invoices{% if square_to_link %} <span class="pill customer" title="Invoices and estimates to link to a job">{{ square_to_link }}</span>{% endif %}</a>{% endif %}

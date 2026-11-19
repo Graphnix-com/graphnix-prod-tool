@@ -47,7 +47,14 @@
         var open = Array.prototype.map.call(
           document.querySelectorAll("#board details.jobcard[open]"),
           function (d) { return d.getAttribute("data-job"); });
+        var expanded = Array.prototype.map.call(
+          document.querySelectorAll("#board details.see-all[open]"),
+          function (d) { return d.getAttribute("data-status"); });
         document.getElementById("board").innerHTML = html;
+        expanded.forEach(function (status) {
+          document.querySelectorAll('#board details.see-all[data-status="' + status + '"]')
+            .forEach(function (d) { d.open = true; });
+        });
         open.forEach(function (id) {
           document.querySelectorAll('#board details.jobcard[data-job="' + id + '"]')
             .forEach(function (d) { d.open = true; });
