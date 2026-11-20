@@ -59,7 +59,7 @@ def _on_enter(job: Job, status: str, now) -> None:
         job.quote_approved_at = now  # the quote is approved once it's invoiced
     elif status == Status.MOCKUP_APPROVED:
         job.mockup_approved_at = now
-        if job.due_date is None:  # a new store order; moves set it in _change_status
+        if job.pk is None:  # a new store order; moves set it in _change_status
             _set_due_date(job, now)
     elif status == Status.READY_FOR_PRODUCTION:
         # Released: its planned tasks join their station queues.
@@ -71,11 +71,14 @@ def _on_enter(job: Job, status: str, now) -> None:
 
 
 def _set_due_date(job: Job, now) -> None:
-    """The turnaround (14 business days by default) from today."""
+    """The turnaround (14 business days by default) from today. It becomes the due date
+    unless someone typed one in: a date that isn't the last one the tracker set is kept."""
+    typed_in = job.due_date is not None and job.due_date != job.suggested_due_date
     job.suggested_due_date = workdays.calendar().add_business_days(
         timezone.localdate(now), workdays.turnaround_days()
     )
-    job.due_date = job.suggested_due_date
+    if not typed_in:
+        job.due_date = job.suggested_due_date
 
 
 def reaches_production_queue(from_status: str, to_status: str) -> bool:
