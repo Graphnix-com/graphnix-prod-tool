@@ -98,7 +98,7 @@ def test_approval_records_who_which_version_and_every_tick(manager, job_at):
     approval = MockupApproval.objects.get()
     assert approval.mockup == version and approval.approved_by_name == "Pat Doe"
     assert approval.checks == mockups.DEFAULT_CHECKS and approval.saved_by == manager
-    assert job.history.get().note == "Mock-up v1 approved by Pat Doe"
+    assert job.history.get().note.startswith("Mock-up v1 approved by Pat Doe; Due date set to")
     audit = AuditLog.objects.get(entity_type="jobs.job", action="status_change")
     assert audit.changes["approved_by"] == [None, "Pat Doe"]
 

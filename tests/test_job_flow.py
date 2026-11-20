@@ -162,12 +162,27 @@ def test_mockup_approval_suggests_due_date_14_business_days_mon_to_thu(
     assert job.mockup_approved_at is not None
 
 
-def test_mockup_approval_replaces_a_due_date_already_set(manager, job_at, monkeypatch):
+def test_mockup_approval_keeps_a_typed_in_due_date(manager, job_at, monkeypatch):
     _at(monkeypatch, datetime(2026, 11, 12, 10, 0, tzinfo=EDMONTON))
     job = job_at(Status.MOCKUP_SENT, due_date=date(2026, 11, 30))
     job = services.move(job, Status.MOCKUP_APPROVED, user=manager, **approval_for(job))
-    assert job.due_date == job.suggested_due_date == date(2026, 12, 8)
+    assert job.due_date == date(2026, 11, 30)
+    assert job.suggested_due_date == date(2026, 12, 8)
+    assert "Due date" not in job.history.get().note
+
+
+def test_mockup_approval_sets_an_empty_due_date_and_resets_its_own(manager, job_at, monkeypatch):
+    _at(monkeypatch, datetime(2026, 11, 12, 10, 0, tzinfo=EDMONTON))
+    job = job_at(Status.MOCKUP_SENT)
+    job = services.move(job, Status.MOCKUP_APPROVED, user=manager, **approval_for(job))
+    assert job.due_date == date(2026, 12, 8)
     assert "Due date set to Tue 8 Dec (14 business days)" in job.history.get().note
+    # Reopened and approved again a week later: the tracker's own date moves with it.
+    job = services.reopen_mockup(job, user=manager, note="Customer changed the logo")
+    _at(monkeypatch, datetime(2026, 11, 19, 10, 0, tzinfo=EDMONTON))
+    job = services.move(job, Status.MOCKUP_SENT, user=manager, mockup="none")
+    job = services.move(job, Status.MOCKUP_APPROVED, user=manager, **approval_for(job))
+    assert job.due_date == job.suggested_due_date == date(2026, 12, 15)
 
 
 def test_any_move_into_production_stages_sets_the_due_date(manager, job_at, monkeypatch):
