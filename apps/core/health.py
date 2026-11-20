@@ -141,6 +141,15 @@ def check_square_nightly(now: datetime | None = None) -> HealthCheck:
     return HealthCheck(name, OK, detail, at)
 
 
+def _mail_error(name: str, result: dict, at: datetime, now: datetime) -> HealthCheck:
+    from apps.m365 import mailcheck
+
+    if mailcheck.is_brief_outage(result, now):
+        detail = f"{result['error']}. Trying again every 5 minutes."
+        return HealthCheck(name, WARN, detail, at)
+    return HealthCheck(name, FAIL, result["error"], at)
+
+
 def check_estimate_mail(now: datetime | None = None) -> HealthCheck:
     from apps.integrations import estimates
 
@@ -151,7 +160,7 @@ def check_estimate_mail(now: datetime | None = None) -> HealthCheck:
         return HealthCheck(name, WARN, "Not read yet (every 5 minutes)")
     at = datetime.fromisoformat(result["at"])
     if result.get("error"):
-        return HealthCheck(name, FAIL, result["error"], at)
+        return _mail_error(name, result, at, now)
     if now - at > timedelta(minutes=30):
         return HealthCheck(name, WARN, "Not read for over 30 minutes: is the worker running?", at)
     newest = result.get("newest") or "none yet"
@@ -168,7 +177,7 @@ def check_webform_mail(now: datetime | None = None) -> HealthCheck:
         return HealthCheck(name, WARN, "Not read yet (every 5 minutes)")
     at = datetime.fromisoformat(result["at"])
     if result.get("error"):
-        return HealthCheck(name, FAIL, result["error"], at)
+        return _mail_error(name, result, at, now)
     if now - at > timedelta(minutes=30):
         return HealthCheck(name, WARN, "Not read for over 30 minutes: is the worker running?", at)
     newest = result.get("newest") or "none yet"

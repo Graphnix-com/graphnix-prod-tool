@@ -360,7 +360,7 @@ def check_mail(*, since=None) -> dict:
     """Read Square's estimate emails received since `since` (default: a day before the last
     one read) and handle each new one. The result is kept for the health panel."""
     from apps.accounts.models import AppSetting, get_setting
-    from apps.m365 import graph
+    from apps.m365 import graph, mailcheck
 
     now = timezone.now()
     result = {"at": now.isoformat(), "read": 0, "error": ""}
@@ -387,8 +387,7 @@ def check_mail(*, since=None) -> dict:
             if received > result["newest"]:
                 result["newest"] = received
     except graph.GraphError as exc:
-        result["error"] = str(exc)[:500]
-        log.error("Reading estimate emails failed: %s", exc)
+        mailcheck.failed(result, last, exc, log=log, what="estimate emails", now=now)
     AppSetting.objects.update_or_create(key=RESULT_KEY, defaults={"value": result})
     return result
 
